@@ -21,6 +21,7 @@
 #include "esp_attr.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "esp_heap_caps.h"
 
 
 #define STACK_DEPTH CONFIG_HEAP_TRACING_STACK_DEPTH
@@ -29,6 +30,7 @@
 
 static portMUX_TYPE trace_mux = portMUX_INITIALIZER_UNLOCKED;
 static bool tracing;
+static size_t trace_min_alloc_size = 0;
 static heap_trace_mode_t mode;
 
 /* Buffer used for records, starting at offset 0
@@ -79,6 +81,12 @@ esp_err_t heap_trace_start(heap_trace_mode_t mode_param)
     heap_trace_resume();
 
     portEXIT_CRITICAL(&trace_mux);
+    return ESP_OK;
+}
+
+esp_err_t heap_trace_set_min_allocation_size(size_t value)
+{
+    trace_min_alloc_size = value;
     return ESP_OK;
 }
 
@@ -135,8 +143,8 @@ void heap_trace_dump(void)
         heap_trace_record_t *rec = &buffer[i];
 
         if (rec->address != NULL) {
-            printf("%d bytes (@ %p) allocated CPU %d ccount 0x%08x caller ",
-                   rec->size, rec->address, rec->ccount & 1, rec->ccount & ~3);
+            printf("allocated %d of %d (now: %d) with caps 0x%04x (@ %p) allocated CPU %d ccount 0x%08x caller ",
+                   rec->size, rec->free_heap, rec->free_heap-rec->size, rec->caps, rec->address, rec->ccount & 1, rec->ccount & ~3);
             for (int j = 0; j < STACK_DEPTH && rec->alloced_by[j] != 0; j++) {
                 printf("%p%s", rec->alloced_by[j],
                        (j < STACK_DEPTH - 1) ? ":" : "");
@@ -173,7 +181,7 @@ void heap_trace_dump(void)
 /* Add a new allocation to the heap trace records */
 static IRAM_ATTR void record_allocation(const heap_trace_record_t *record)
 {
-    if (!tracing || record->address == NULL) {
+    if (!tracing || record->address == NULL || record->size < trace_min_alloc_size) {
         return;
     }
 

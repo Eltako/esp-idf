@@ -41,6 +41,8 @@ typedef struct {
     uint32_t ccount; ///< CCOUNT of the CPU when the allocation was made. LSB (bit value 1) is the CPU number (0 or 1).
     void *address;   ///< Address which was allocated
     size_t size;     ///< Size of the allocation
+    uint32_t caps;
+    size_t free_heap; ///< Free heap when allocation happened
     void *alloced_by[CONFIG_HEAP_TRACING_STACK_DEPTH]; ///< Call stack of the caller which allocated the memory.
     void *freed_by[CONFIG_HEAP_TRACING_STACK_DEPTH];   ///< Call stack of the caller which freed the memory (all zero if not freed.)
 } heap_trace_record_t;
@@ -89,6 +91,15 @@ esp_err_t heap_trace_init_tohost(void);
  * - ESP_OK Tracing is started.
  */
 esp_err_t heap_trace_start(heap_trace_mode_t mode);
+
+/**
+ *
+ * @brief Set minimum allocation size in order to be part of the heap trace
+ *
+ * @note Calling this function while heap tracing is running will not reset the heap trace state.
+ *
+ */
+esp_err_t heap_trace_set_min_allocation_size(size_t value);
 
 /**
  * @brief Stop heap tracing.

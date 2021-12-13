@@ -79,7 +79,7 @@ esp_err_t heap_caps_register_failed_alloc_callback(esp_alloc_failed_hook_t callb
     return ESP_OK;
 }
 
-bool heap_caps_match(const heap_t *heap, uint32_t caps)
+IRAM_ATTR bool heap_caps_match(const heap_t *heap, uint32_t caps)
 {
     return heap->heap != NULL && ((get_all_caps(heap) & caps) == caps);
 }
@@ -411,7 +411,7 @@ size_t heap_caps_get_total_size(uint32_t caps)
     return total_size;
 }
 
-size_t heap_caps_get_free_size( uint32_t caps )
+IRAM_ATTR size_t heap_caps_get_free_size( uint32_t caps )
 {
     size_t ret = 0;
     heap_t *heap;
