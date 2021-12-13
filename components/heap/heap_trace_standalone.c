@@ -53,6 +53,9 @@ static size_t total_frees;
 /* Has the buffer overflowed and lost trace entries? */
 static bool has_overflowed = false;
 
+/* Minimum recorded free heap in trace */
+static size_t trace_min_free_heap;
+
 esp_err_t heap_trace_init_standalone(heap_trace_record_t *record_buffer, size_t num_records)
 {
     if (tracing) {
@@ -78,6 +81,7 @@ esp_err_t heap_trace_start(heap_trace_mode_t mode_param)
     total_allocations = 0;
     total_frees = 0;
     has_overflowed = false;
+    trace_min_free_heap = SIZE_MAX;
     heap_trace_resume();
 
     portEXIT_CRITICAL(&trace_mux);
@@ -176,12 +180,21 @@ void heap_trace_dump(void)
     if (has_overflowed) {
         printf("(NB: Buffer has overflowed, so trace data is incomplete.)\n");
     }
+    if (trace_min_free_heap) {
+        printf("Minimum free heap was %d\n", trace_min_free_heap);
+    }
 }
 
 /* Add a new allocation to the heap trace records */
 static IRAM_ATTR void record_allocation(const heap_trace_record_t *record)
 {
-    if (!tracing || record->address == NULL || record->size < trace_min_alloc_size) {
+    if (!tracing || record->address == NULL) {
+        return;
+    }
+    if (record->free_heap > 0 && record->free_heap-record->size < trace_min_free_heap) {
+        trace_min_free_heap = record->free_heap-record->size;
+    }
+    if (record->size < trace_min_alloc_size) {
         return;
     }
 
