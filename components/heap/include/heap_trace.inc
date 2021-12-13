@@ -94,11 +94,14 @@ static IRAM_ATTR __attribute__((noinline)) void *trace_malloc(size_t size, uint3
     } else { //TRACE_MALLOC_DEFAULT
         p = __real_heap_caps_malloc_default(size);
     }
+    size_t free_heap = heap_caps_get_free_size(caps)+size;
 
     heap_trace_record_t rec = {
         .address = p,
         .ccount = ccount,
         .size = size,
+        .caps = caps,
+        .free_heap = free_heap,
     };
     get_call_stack(rec.alloced_by);
     record_allocation(&rec);
@@ -135,12 +138,16 @@ static IRAM_ATTR __attribute__((noinline)) void *trace_realloc(void *p, size_t s
     } else { //TRACE_MALLOC_DEFAULT
         r = __real_heap_caps_realloc_default(p, size);
     }
+    size_t free_heap = heap_caps_get_free_size(caps)+size;
+
     /* realloc with zero size is a free */
     if (size != 0) {
         heap_trace_record_t rec = {
             .address = r,
             .ccount = ccount,
             .size = size,
+            .caps = caps,
+            .free_heap = free_heap,
         };
         memcpy(rec.alloced_by, callers, sizeof(void *) * STACK_DEPTH);
         record_allocation(&rec);
@@ -154,7 +161,7 @@ static IRAM_ATTR __attribute__((noinline)) void *trace_realloc(void *p, size_t s
 
 IRAM_ATTR void *__wrap_malloc(size_t size)
 {
-    return trace_malloc(size, 0, TRACE_MALLOC_DEFAULT);
+    return trace_malloc(size, MALLOC_CAP_DEFAULT, TRACE_MALLOC_DEFAULT);
 }
 
 IRAM_ATTR void __wrap_free(void *p)
@@ -164,13 +171,13 @@ IRAM_ATTR void __wrap_free(void *p)
 
 IRAM_ATTR void *__wrap_realloc(void *p, size_t size)
 {
-    return trace_realloc(p, size, 0, TRACE_MALLOC_DEFAULT);
+    return trace_realloc(p, size, MALLOC_CAP_DEFAULT, TRACE_MALLOC_DEFAULT);
 }
 
 IRAM_ATTR void *__wrap_calloc(size_t nmemb, size_t size)
 {
     size = size * nmemb;
-    void *result = trace_malloc(size, 0, TRACE_MALLOC_DEFAULT);
+    void *result = trace_malloc(size, MALLOC_CAP_DEFAULT, TRACE_MALLOC_DEFAULT);
     if (result != NULL) {
         memset(result, 0, size);
     }
@@ -191,10 +198,10 @@ IRAM_ATTR void *__wrap_heap_caps_realloc(void *p, size_t size, uint32_t caps)
 
 IRAM_ATTR void *__wrap_heap_caps_malloc_default( size_t size )
 {
-    return trace_malloc(size, 0, TRACE_MALLOC_DEFAULT);
+    return trace_malloc(size, MALLOC_CAP_DEFAULT, TRACE_MALLOC_DEFAULT);
 }
 
 IRAM_ATTR void *__wrap_heap_caps_realloc_default( void *ptr, size_t size )
 {
-    return trace_realloc(ptr, size, 0, TRACE_MALLOC_DEFAULT);
+    return trace_realloc(ptr, size, MALLOC_CAP_DEFAULT, TRACE_MALLOC_DEFAULT);
 }
