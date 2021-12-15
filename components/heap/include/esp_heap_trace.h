@@ -48,6 +48,22 @@ typedef struct {
 } heap_trace_record_t;
 
 /**
+ * Filter function for memory allocation
+ * First parameter is the pointer given to heap_trace_set_filter_functions as instance
+ * Second parameter is a pointer to information describing the allocation
+ * Third parameter is a pointer to an array of size CONFIG_HEAP_TRACING_FULL_STACK_DEPTH of caller addresses
+ */
+typedef int (*heap_trace_record_filter_alloc)(void*, heap_trace_record_t const *, void**);
+
+/**
+ * Filter function for memory free
+ * First parameter is the pointer given to heap_trace_set_filter_functions as instance
+ * Second parameter is the freed address
+ * Third parameter is a pointer to an array of size CONFIG_HEAP_TRACING_FULL_STACK_DEPTH of caller addresses
+ */
+typedef int (*heap_trace_record_filter_free)(void*, void*, void**);
+
+/**
  * @brief Initialise heap tracing in standalone mode.
  *
  * This function must be called before any other heap tracing functions.
@@ -76,6 +92,14 @@ esp_err_t heap_trace_init_standalone(heap_trace_record_t *record_buffer, size_t 
 esp_err_t heap_trace_init_tohost(void);
 
 /**
+ * @brief Set a function used to filter trace records
+ *
+ * If function returns true then the trace record is stored.
+ *
+ */
+esp_err_t heap_trace_set_filter_functions(heap_trace_record_filter_alloc alloc_fn, heap_trace_record_filter_free free_fn, void * instance);
+
+/**
  * @brief Start heap tracing. All heap allocations & frees will be traced, until heap_trace_stop() is called.
  *
  * @note heap_trace_init_standalone() must be called to provide a valid buffer, before this function is called.
@@ -91,15 +115,6 @@ esp_err_t heap_trace_init_tohost(void);
  * - ESP_OK Tracing is started.
  */
 esp_err_t heap_trace_start(heap_trace_mode_t mode);
-
-/**
- *
- * @brief Set minimum allocation size in order to be part of the heap trace
- *
- * @note Calling this function while heap tracing is running will not reset the heap trace state.
- *
- */
-esp_err_t heap_trace_set_min_allocation_size(size_t value);
 
 /**
  * @brief Stop heap tracing.

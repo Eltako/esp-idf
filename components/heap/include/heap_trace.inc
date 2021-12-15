@@ -39,14 +39,14 @@ inline static uint32_t get_ccount(void)
 #define STACK_OFFSET  2
 
 #define TEST_STACK(N) do {                                              \
-        if (STACK_DEPTH == N) {                                         \
-            return;                                                     \
+        if (FULL_STACK_DEPTH == N) {                                         \
+            return N;                                                     \
         }                                                               \
         callers[N] = __builtin_return_address(N+STACK_OFFSET);          \
         if (!esp_ptr_executable(callers[N])                             \
             || callers[N] == (void*) HEAP_ARCH_INVALID_PC) {            \
             callers[N] = 0;                                             \
-            return;                                                     \
+            return N;                                                     \
         }                                                               \
     } while(0)
 
@@ -55,9 +55,9 @@ inline static uint32_t get_ccount(void)
    Calls to __builtin_return_address are "unrolled" via TEST_STACK macro as gcc requires the
    argument to be a compile-time constant.
 */
-static IRAM_ATTR __attribute__((noinline)) void get_call_stack(void **callers)
+static IRAM_ATTR __attribute__((noinline)) size_t get_call_stack(void **callers)
 {
-    bzero(callers, sizeof(void *) * STACK_DEPTH);
+    bzero(callers, sizeof(void *) * FULL_STACK_DEPTH);
     TEST_STACK(0);
     TEST_STACK(1);
     TEST_STACK(2);
@@ -68,16 +68,36 @@ static IRAM_ATTR __attribute__((noinline)) void get_call_stack(void **callers)
     TEST_STACK(7);
     TEST_STACK(8);
     TEST_STACK(9);
+    TEST_STACK(10);
+    TEST_STACK(11);
+    TEST_STACK(12);
+    TEST_STACK(13);
+    TEST_STACK(14);
+    TEST_STACK(15);
+    TEST_STACK(16);
+    TEST_STACK(17);
+    TEST_STACK(18);
+    TEST_STACK(19);
+    TEST_STACK(20);
+    TEST_STACK(21);
+    TEST_STACK(22);
+    TEST_STACK(23);
+    TEST_STACK(24);
+    TEST_STACK(25);
+    TEST_STACK(26);
+    TEST_STACK(27);
+    TEST_STACK(28);
+    TEST_STACK(29);
+    return FULL_STACK_DEPTH;
 }
-
-_Static_assert(STACK_DEPTH >= 0 && STACK_DEPTH <= 10, "CONFIG_HEAP_TRACING_STACK_DEPTH must be in range 0-10");
+_Static_assert(FULL_STACK_DEPTH >= STACK_DEPTH, "CONFIG_HEAP_TRACING_FULL_STACK_DEPTH must be larger or equal than CONFIG_HEAP_TRACING_STACK_DEPTH");
+_Static_assert(FULL_STACK_DEPTH >= 0 && FULL_STACK_DEPTH <= 30, "CONFIG_HEAP_TRACING_FULL_STACK_DEPTH must be in range 0-30");
 
 
 typedef enum {
     TRACE_MALLOC_CAPS,
     TRACE_MALLOC_DEFAULT
 } trace_malloc_mode_t;
-
 
 void *__real_heap_caps_malloc(size_t size, uint32_t caps);
 void *__real_heap_caps_malloc_default( size_t size );
@@ -103,8 +123,12 @@ static IRAM_ATTR __attribute__((noinline)) void *trace_malloc(size_t size, uint3
         .caps = caps,
         .free_heap = free_heap,
     };
-    get_call_stack(rec.alloced_by);
-    record_allocation(&rec);
+    {
+        void* callers[FULL_STACK_DEPTH];
+        get_call_stack(callers);
+        memcpy(rec.alloced_by, callers, sizeof(void*)*STACK_DEPTH);
+        record_allocation(&rec, callers);
+    }
     return p;
 }
 
@@ -113,7 +137,7 @@ void __real_heap_caps_free(void *p);
 /* trace any 'free' event */
 static IRAM_ATTR __attribute__((noinline)) void trace_free(void *p)
 {
-    void *callers[STACK_DEPTH];
+    void *callers[FULL_STACK_DEPTH];
     get_call_stack(callers);
     record_free(p, callers);
 
@@ -125,7 +149,7 @@ void * __real_heap_caps_realloc(void *p, size_t size, uint32_t caps);
 /* trace any 'realloc' event */
 static IRAM_ATTR __attribute__((noinline)) void *trace_realloc(void *p, size_t size, uint32_t caps, trace_malloc_mode_t mode)
 {
-    void *callers[STACK_DEPTH];
+    void *callers[FULL_STACK_DEPTH];
     uint32_t ccount = get_ccount();
     void *r;
 
@@ -150,7 +174,7 @@ static IRAM_ATTR __attribute__((noinline)) void *trace_realloc(void *p, size_t s
             .free_heap = free_heap,
         };
         memcpy(rec.alloced_by, callers, sizeof(void *) * STACK_DEPTH);
-        record_allocation(&rec);
+        record_allocation(&rec, callers);
     }
     return r;
 }

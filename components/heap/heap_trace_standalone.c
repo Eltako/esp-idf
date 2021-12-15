@@ -25,12 +25,12 @@
 
 
 #define STACK_DEPTH CONFIG_HEAP_TRACING_STACK_DEPTH
+#define FULL_STACK_DEPTH CONFIG_HEAP_TRACING_FULL_STACK_DEPTH
 
 #if CONFIG_HEAP_TRACING_STANDALONE
 
 static portMUX_TYPE trace_mux = portMUX_INITIALIZER_UNLOCKED;
 static bool tracing;
-static size_t trace_min_alloc_size = 0;
 static heap_trace_mode_t mode;
 
 /* Buffer used for records, starting at offset 0
@@ -53,8 +53,10 @@ static size_t total_frees;
 /* Has the buffer overflowed and lost trace entries? */
 static bool has_overflowed = false;
 
-/* Minimum recorded free heap in trace */
-static heap_trace_record_t trace_min_free_heap;
+/* Filter functions */
+static heap_trace_record_filter_alloc trace_filter_alloc_fn = NULL;
+static heap_trace_record_filter_free trace_filter_free_fn = NULL;
+static void * trace_filter_instance = NULL;
 
 esp_err_t heap_trace_init_standalone(heap_trace_record_t *record_buffer, size_t num_records)
 {
@@ -81,17 +83,17 @@ esp_err_t heap_trace_start(heap_trace_mode_t mode_param)
     total_allocations = 0;
     total_frees = 0;
     has_overflowed = false;
-    trace_min_free_heap.address = NULL;
-    trace_min_free_heap.free_heap = SIZE_MAX;
     heap_trace_resume();
 
     portEXIT_CRITICAL(&trace_mux);
     return ESP_OK;
 }
 
-esp_err_t heap_trace_set_min_allocation_size(size_t value)
+esp_err_t heap_trace_set_filter_functions(heap_trace_record_filter_alloc alloc_fn, heap_trace_record_filter_free free_fn, void * instance)
 {
-    trace_min_alloc_size = value;
+    trace_filter_alloc_fn = alloc_fn;
+    trace_filter_free_fn = free_fn;
+    trace_filter_instance = instance;
     return ESP_OK;
 }
 
@@ -181,27 +183,15 @@ void heap_trace_dump(void)
     if (has_overflowed) {
         printf("(NB: Buffer has overflowed, so trace data is incomplete.)\n");
     }
-    if (trace_min_free_heap.address != NULL) {
-        heap_trace_record_t * rec = &trace_min_free_heap;
-        printf("Minimum free heap allocated %d of %d (now: %d) with caps 0x%04x (@ %p) allocated CPU %d ccount 0x%08x caller ",
-                rec->size, rec->free_heap, rec->free_heap-rec->size, rec->caps, rec->address, rec->ccount & 1, rec->ccount & ~3);
-        for (int j = 0; j < STACK_DEPTH && rec->alloced_by[j] != 0; j++) {
-            printf("%p%s", rec->alloced_by[j],
-                    (j < STACK_DEPTH - 1) ? ":" : "");
-        }
-    }
 }
 
 /* Add a new allocation to the heap trace records */
-static IRAM_ATTR void record_allocation(const heap_trace_record_t *record)
+static IRAM_ATTR void record_allocation(const heap_trace_record_t *record, void** callers)
 {
     if (!tracing || record->address == NULL) {
         return;
     }
-    if (record->free_heap > 0 && record->free_heap-record->size < trace_min_free_heap.free_heap-trace_min_free_heap.size && (record->ccount & 1) == 1) {
-        memcpy(&trace_min_free_heap, record, sizeof(heap_trace_record_t));
-    }
-    if (record->size < trace_min_alloc_size) {
+    if (trace_filter_alloc_fn && !(*trace_filter_alloc_fn)(trace_filter_instance, record, callers)) {
         return;
     }
 
@@ -238,6 +228,9 @@ static void remove_record(int index);
 static IRAM_ATTR void record_free(void *p, void **callers)
 {
     if (!tracing || p == NULL) {
+        return;
+    }
+    if (trace_filter_free_fn && !(*trace_filter_free_fn)(trace_filter_instance, p, callers)) {
         return;
     }
 
