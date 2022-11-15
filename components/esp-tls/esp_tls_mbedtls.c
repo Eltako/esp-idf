@@ -473,7 +473,7 @@ void esp_mbedtls_server_session_ticket_ctx_free(esp_tls_server_session_ticket_ct
 {
     if (ctx) {
         mbedtls_ssl_ticket_free(&ctx->ticket_ctx);
-        mbedtls_ctr_drbg_init(&ctx->ctr_drbg);
+        mbedtls_ctr_drbg_free(&ctx->ctr_drbg);
         mbedtls_entropy_free(&ctx->entropy);
     }
 }
