@@ -15,6 +15,7 @@
 #include <sdkconfig.h>
 #include "soc/soc_memory_layout.h"
 #include "esp_attr.h"
+#include "esp_assert.h"
 
 /* Encode the CPU ID in the LSB of the ccount value */
 inline static uint32_t get_ccount(void)
@@ -92,7 +93,6 @@ static IRAM_ATTR __attribute__((noinline)) size_t get_call_stack(void **callers)
 }
 _Static_assert(FULL_STACK_DEPTH >= STACK_DEPTH, "CONFIG_HEAP_TRACING_FULL_STACK_DEPTH must be larger or equal than CONFIG_HEAP_TRACING_STACK_DEPTH");
 _Static_assert(FULL_STACK_DEPTH >= 0 && FULL_STACK_DEPTH <= 30, "CONFIG_HEAP_TRACING_FULL_STACK_DEPTH must be in range 0-30");
-
 
 typedef enum {
     TRACE_MALLOC_CAPS,

@@ -37,11 +37,6 @@
 
 #define MHZ (1000000)
 
-/* Lower threshold for a reasonably-looking calibration value for a 32k XTAL.
- * The ideal value (assuming 32768 Hz frequency) is 1000000/32768*(2**19) = 16*10^6.
- */
-#define MIN_32K_XTAL_CAL_VAL  15000000L
-
 /* Indicates that this 32k oscillator gets input from external oscillator, rather
  * than a crystal.
  */
@@ -69,7 +64,11 @@ static const char *TAG = "clk";
     rtc_config_t cfg = RTC_CONFIG_DEFAULT();
     soc_reset_reason_t rst_reas;
     rst_reas = esp_rom_get_reset_reason(0);
-    if (rst_reas == RESET_REASON_CHIP_POWER_ON) {
+    if (rst_reas == RESET_REASON_CHIP_POWER_ON
+#if SOC_EFUSE_HAS_EFUSE_RST_BUG
+        || rst_reas == RESET_REASON_CORE_EFUSE_CRC
+#endif
+        ) {
         cfg.cali_ocode = 1;
     }
     rtc_init(cfg);
@@ -160,7 +159,7 @@ static void select_rtc_slow_clk(slow_clk_sel_t slow_clk)
             // When SLOW_CLK_CAL_CYCLES is set to 0, clock calibration will not be performed at startup.
             if (SLOW_CLK_CAL_CYCLES > 0) {
                 cal_val = rtc_clk_cal(RTC_CAL_32K_XTAL, SLOW_CLK_CAL_CYCLES);
-                if (cal_val == 0 || cal_val < MIN_32K_XTAL_CAL_VAL) {
+                if (cal_val == 0) {
                     if (retry_32k_xtal-- > 0) {
                         continue;
                     }
@@ -216,10 +215,10 @@ __attribute__((weak)) void esp_perip_clk_init(void)
     } else {
         common_perip_clk = SYSTEM_WDG_CLK_EN |
                            SYSTEM_I2S0_CLK_EN |
-#if CONFIG_CONSOLE_UART_NUM != 0
+#if CONFIG_ESP_CONSOLE_UART_NUM != 0
                            SYSTEM_UART_CLK_EN |
 #endif
-#if CONFIG_CONSOLE_UART_NUM != 1
+#if CONFIG_ESP_CONSOLE_UART_NUM != 1
                            SYSTEM_UART1_CLK_EN |
 #endif
                            SYSTEM_SPI2_CLK_EN |
@@ -241,16 +240,16 @@ __attribute__((weak)) void esp_perip_clk_init(void)
                              SYSTEM_CRYPTO_RSA_CLK_EN;
         wifi_bt_sdio_clk = SYSTEM_WIFI_CLK_WIFI_EN |
                            SYSTEM_WIFI_CLK_BT_EN_M |
-                           SYSTEM_WIFI_CLK_UNUSED_BIT5 |
+                           SYSTEM_WIFI_CLK_I2C_CLK_EN |
                            SYSTEM_WIFI_CLK_UNUSED_BIT12;
     }
 
     //Reset the communication peripherals like I2C, SPI, UART, I2S and bring them to known state.
     common_perip_clk |= SYSTEM_I2S0_CLK_EN |
-#if CONFIG_CONSOLE_UART_NUM != 0
+#if CONFIG_ESP_CONSOLE_UART_NUM != 0
                         SYSTEM_UART_CLK_EN |
 #endif
-#if CONFIG_CONSOLE_UART_NUM != 1
+#if CONFIG_ESP_CONSOLE_UART_NUM != 1
                         SYSTEM_UART1_CLK_EN |
 #endif
                         SYSTEM_SPI2_CLK_EN |

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2015-2021 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2015-2022 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -11,6 +11,7 @@ Warning: The USB Host Library API is still a beta version and may be subject to 
 #pragma once
 
 #include <stdint.h>
+#include "esp_assert.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -96,9 +97,9 @@ typedef union {
         uint16_t wIndex;                    /**< Word-sized field that varies according to request; typically used to pass an index or offset */
         uint16_t wLength;                   /**< Number of bytes to transfer if there is a data stage */
     } __attribute__((packed));
-    uint8_t val[USB_SETUP_PACKET_SIZE];
+    uint8_t val[USB_SETUP_PACKET_SIZE];     /**< Descriptor value */
 } usb_setup_packet_t;
-_Static_assert(sizeof(usb_setup_packet_t) == USB_SETUP_PACKET_SIZE, "Size of usb_setup_packet_t incorrect");
+ESP_STATIC_ASSERT(sizeof(usb_setup_packet_t) == USB_SETUP_PACKET_SIZE, "Size of usb_setup_packet_t incorrect");
 
 /**
  * @brief Bit masks belonging to the bmRequestType field of a setup packet
@@ -217,11 +218,11 @@ _Static_assert(sizeof(usb_setup_packet_t) == USB_SETUP_PACKET_SIZE, "Size of usb
 /**
  * @brief Initializer for a request to get an string descriptor
  */
-#define USB_SETUP_PACKET_INIT_GET_STR_DESC(setup_pkt_ptr, string_index, desc_len) ({ \
+#define USB_SETUP_PACKET_INIT_GET_STR_DESC(setup_pkt_ptr, string_index, lang_id, desc_len) ({ \
     (setup_pkt_ptr)->bmRequestType = USB_BM_REQUEST_TYPE_DIR_IN | USB_BM_REQUEST_TYPE_TYPE_STANDARD | USB_BM_REQUEST_TYPE_RECIP_DEVICE; \
     (setup_pkt_ptr)->bRequest = USB_B_REQUEST_GET_DESCRIPTOR; \
     (setup_pkt_ptr)->wValue = (USB_W_VALUE_DT_STRING << 8) | ((string_index) & 0xFF); \
-    (setup_pkt_ptr)->wIndex = 0; \
+    (setup_pkt_ptr)->wIndex = (lang_id); \
     (setup_pkt_ptr)->wLength = (desc_len); \
 })
 
@@ -241,10 +242,10 @@ typedef union {
     struct {
         uint8_t bLength;                    /**< Size of the descriptor in bytes */
         uint8_t bDescriptorType;            /**< Descriptor Type */
-    } USB_DESC_ATTR;
-    uint8_t val[USB_STANDARD_DESC_SIZE];
+    } USB_DESC_ATTR;                        /**< USB descriptor attributes */
+    uint8_t val[USB_STANDARD_DESC_SIZE];    /**< Descriptor value */
 } usb_standard_desc_t;
-_Static_assert(sizeof(usb_standard_desc_t) == USB_STANDARD_DESC_SIZE, "Size of usb_standard_desc_t incorrect");
+ESP_STATIC_ASSERT(sizeof(usb_standard_desc_t) == USB_STANDARD_DESC_SIZE, "Size of usb_standard_desc_t incorrect");
 
 // ------------------ Device Descriptor --------------------
 
@@ -274,10 +275,10 @@ typedef union {
         uint8_t iProduct;                   /**< Index of string descriptor describing product */
         uint8_t iSerialNumber;              /**< Index of string descriptor describing the device’s serial number */
         uint8_t bNumConfigurations;         /**< Number of possible configurations */
-    } USB_DESC_ATTR;
-    uint8_t val[USB_DEVICE_DESC_SIZE];
+    } USB_DESC_ATTR;                        /**< USB descriptor attributes */
+    uint8_t val[USB_DEVICE_DESC_SIZE];      /**< Descriptor value */
 } usb_device_desc_t;
-_Static_assert(sizeof(usb_device_desc_t) == USB_DEVICE_DESC_SIZE, "Size of usb_device_desc_t incorrect");
+ESP_STATIC_ASSERT(sizeof(usb_device_desc_t) == USB_DEVICE_DESC_SIZE, "Size of usb_device_desc_t incorrect");
 
 /**
  * @brief Possible base class values of the bDeviceClass field of a USB device descriptor
@@ -337,10 +338,10 @@ typedef union {
         uint8_t iConfiguration;             /**< Index of string descriptor describing this configuration */
         uint8_t bmAttributes;               /**< Configuration characteristics */
         uint8_t bMaxPower;                  /**< Maximum power consumption of the USB device from the bus in this specific configuration when the device is fully operational. */
-    } USB_DESC_ATTR;
-    uint8_t val[USB_CONFIG_DESC_SIZE];
+    } USB_DESC_ATTR;                        /**< USB descriptor attributes */
+    uint8_t val[USB_CONFIG_DESC_SIZE];      /**< Descriptor value */
 } usb_config_desc_t;
-_Static_assert(sizeof(usb_config_desc_t) == USB_CONFIG_DESC_SIZE, "Size of usb_config_desc_t incorrect");
+ESP_STATIC_ASSERT(sizeof(usb_config_desc_t) == USB_CONFIG_DESC_SIZE, "Size of usb_config_desc_t incorrect");
 
 /**
  * @brief Bit masks belonging to the bmAttributes field of a configuration descriptor
@@ -370,10 +371,10 @@ typedef union {
         uint8_t bFunctionSubClass;          /**< Subclass code (assigned by USB-IF) */
         uint8_t bFunctionProtocol;          /**< Protocol code (assigned by USB-IF) */
         uint8_t iFunction;                  /**< Index of string descriptor describing this function */
-    } USB_DESC_ATTR;
-    uint8_t val[USB_IAD_DESC_SIZE];
+    } USB_DESC_ATTR;                        /**< USB descriptor attributes */
+    uint8_t val[USB_IAD_DESC_SIZE];         /**< Descriptor value */
 } usb_iad_desc_t;
-_Static_assert(sizeof(usb_iad_desc_t) == USB_IAD_DESC_SIZE, "Size of usb_iad_desc_t incorrect");
+ESP_STATIC_ASSERT(sizeof(usb_iad_desc_t) == USB_IAD_DESC_SIZE, "Size of usb_iad_desc_t incorrect");
 
 // ---------------- Interface Descriptor -------------------
 
@@ -398,10 +399,10 @@ typedef union {
         uint8_t bInterfaceSubClass;         /**< Subclass code (assigned by the USB-IF) */
         uint8_t bInterfaceProtocol;         /**< Protocol code (assigned by the USB) */
         uint8_t iInterface;                 /**< Index of string descriptor describing this interface */
-    } USB_DESC_ATTR;
-    uint8_t val[USB_INTF_DESC_SIZE];
+    } USB_DESC_ATTR;                        /**< USB descriptor attributes */
+    uint8_t val[USB_INTF_DESC_SIZE];        /**< Descriptor value */
 } usb_intf_desc_t;
-_Static_assert(sizeof(usb_intf_desc_t) == USB_INTF_DESC_SIZE, "Size of usb_intf_desc_t incorrect");
+ESP_STATIC_ASSERT(sizeof(usb_intf_desc_t) == USB_INTF_DESC_SIZE, "Size of usb_intf_desc_t incorrect");
 
 // ----------------- Endpoint Descriptor -------------------
 
@@ -423,10 +424,10 @@ typedef union {
         uint8_t bmAttributes;               /**< This field describes the endpoint’s attributes when it is configured using the bConfigurationValue. */
         uint16_t wMaxPacketSize;            /**< Maximum packet size this endpoint is capable of sending or receiving when this configuration is selected. */
         uint8_t bInterval;                  /**< Interval for polling Isochronous and Interrupt endpoints. Expressed in frames or microframes depending on the device operating speed (1 ms for Low-Speed and Full-Speed or 125 us for USB High-Speed and above). */
-    } USB_DESC_ATTR;
-    uint8_t val[USB_EP_DESC_SIZE];
+    } USB_DESC_ATTR;                        /**< USB descriptor attributes */
+    uint8_t val[USB_EP_DESC_SIZE];          /**< Descriptor value */
 } usb_ep_desc_t;
-_Static_assert(sizeof(usb_ep_desc_t) == USB_EP_DESC_SIZE, "Size of usb_ep_desc_t incorrect");
+ESP_STATIC_ASSERT(sizeof(usb_ep_desc_t) == USB_EP_DESC_SIZE, "Size of usb_ep_desc_t incorrect");
 
 /**
  * @brief Bit masks belonging to the bEndpointAddress field of an endpoint descriptor
@@ -465,7 +466,7 @@ _Static_assert(sizeof(usb_ep_desc_t) == USB_EP_DESC_SIZE, "Size of usb_ep_desc_t
 /**
  * @brief Size of a short USB string descriptor in bytes
  */
-#define USB_STR_DESC_SIZE       4
+#define USB_STR_DESC_SIZE       2
 
 /**
  * @brief Structure representing a USB string descriptor
@@ -474,11 +475,11 @@ typedef union {
     struct {
         uint8_t bLength;                    /**< Size of the descriptor in bytes */
         uint8_t bDescriptorType;            /**< STRING Descriptor Type */
-        uint16_t wData[1];                  /**< UTF-16LE encoded */
-    } USB_DESC_ATTR;
-    uint8_t val[USB_STR_DESC_SIZE];
+        uint16_t wData[];                   /**< UTF-16LE encoded */
+    } USB_DESC_ATTR;                        /**< USB descriptor attributes */
+    uint8_t val[USB_STR_DESC_SIZE];         /**< Descriptor value */
 } usb_str_desc_t;
-_Static_assert(sizeof(usb_str_desc_t) == USB_STR_DESC_SIZE, "Size of usb_str_desc_t incorrect");
+ESP_STATIC_ASSERT(sizeof(usb_str_desc_t) == USB_STR_DESC_SIZE, "Size of usb_str_desc_t incorrect");
 
 #ifdef __cplusplus
 }
