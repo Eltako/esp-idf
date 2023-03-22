@@ -106,7 +106,7 @@ typedef uint32_t TickType_t;
 #define portCRITICAL_NESTING_IN_TCB     0
 #define portSTACK_GROWTH                ( -1 )
 #define portTICK_PERIOD_MS              ( ( TickType_t ) 1000 / configTICK_RATE_HZ )
-#define portBYTE_ALIGNMENT              4
+#define portBYTE_ALIGNMENT              16    // Xtensa Windowed ABI requires the stack pointer to always be 16-byte aligned. See "isa_rm.pdf 8.1.1 Windowed Register Usage and Stack Layout"
 #define portNOP()                       XT_NOP()
 
 
@@ -558,14 +558,14 @@ static inline void __attribute__((always_inline)) uxPortCompareSetExtram(volatil
 
 // --------------------- Interrupts ------------------------
 
-static inline UBaseType_t xPortSetInterruptMaskFromISR(void)
+static inline UBaseType_t __attribute__((always_inline)) xPortSetInterruptMaskFromISR(void)
 {
     UBaseType_t prev_int_level = XTOS_SET_INTLEVEL(XCHAL_EXCM_LEVEL);
     portbenchmarkINTERRUPT_DISABLE();
     return prev_int_level;
 }
 
-static inline void vPortClearInterruptMaskFromISR(UBaseType_t prev_level)
+static inline void __attribute__((always_inline)) vPortClearInterruptMaskFromISR(UBaseType_t prev_level)
 {
     portbenchmarkINTERRUPT_RESTORE(prev_level);
     XTOS_RESTORE_JUST_INTLEVEL(prev_level);
