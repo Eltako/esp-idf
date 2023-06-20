@@ -43,6 +43,8 @@ endif()
 if(NOT "$ENV{IDF_COMPONENT_MANAGER}" EQUAL "0")
     idf_build_set_property(IDF_COMPONENT_MANAGER 1)
 endif()
+# Set component manager interface version
+idf_build_set_property(__COMPONENT_MANAGER_INTERFACE_VERSION 1)
 
 #
 # Get the project version from either a version file or the Git revision. This is passed
@@ -340,7 +342,14 @@ macro(project project_name)
     # PROJECT_NAME is taken from the passed name from project() call
     # PROJECT_DIR is set to the current directory
     # PROJECT_VER is from the version text or git revision of the current repo
-    set(_sdkconfig_defaults "$ENV{SDKCONFIG_DEFAULTS}")
+
+    # SDKCONFIG_DEFAULTS environment variable may specify a file name relative to the root of the project.
+    # When building the bootloader, ignore this variable, since:
+    # 1. The bootloader project uses an existing SDKCONFIG file from the top-level project
+    # 2. File specified by SDKCONFIG_DEFAULTS will not be found relative to the root of the bootloader project
+    if(NOT BOOTLOADER_BUILD)
+        set(_sdkconfig_defaults "$ENV{SDKCONFIG_DEFAULTS}")
+    endif()
 
     if(NOT _sdkconfig_defaults)
         if(EXISTS "${CMAKE_SOURCE_DIR}/sdkconfig.defaults")
@@ -401,8 +410,10 @@ macro(project project_name)
         __component_get_target(main_target idf::main)
         __component_get_property(reqs ${main_target} REQUIRES)
         __component_get_property(priv_reqs ${main_target} PRIV_REQUIRES)
-        idf_build_get_property(common_reqs __COMPONENT_REQUIRES_COMMON)
-        if(reqs STREQUAL common_reqs AND NOT priv_reqs) #if user has not set any requirements
+        __component_get_property(managed_reqs ${main_target} MANAGED_REQUIRES)
+        __component_get_property(managed_priv_reqs ${main_target} MANAGED_PRIV_REQUIRES)
+        #if user has not set any requirements, except ones added with the component manager
+        if((NOT reqs OR reqs STREQUAL managed_reqs) AND (NOT priv_reqs OR priv_reqs STREQUAL managed_priv_reqs))
             if(test_components)
                 list(REMOVE_ITEM build_components ${test_components})
             endif()
