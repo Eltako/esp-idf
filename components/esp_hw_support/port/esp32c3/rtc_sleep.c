@@ -18,11 +18,15 @@
 #include "soc/timer_group_reg.h"
 #include "soc/system_reg.h"
 #include "soc/rtc.h"
+#include "soc/chip_revision.h"
 #include "esp32c3/rom/ets_sys.h"
 #include "esp32c3/rom/rtc.h"
 #include "regi2c_ctrl.h"
 #include "esp_efuse.h"
 #include "hal/efuse_hal.h"
+#if CONFIG_ESP_SLEEP_SYSTIMER_STALL_WORKAROUND
+#include "soc/systimer_reg.h"
+#endif
 
 /**
  * Configure whether certain peripherals are powered down in deep sleep
@@ -77,8 +81,8 @@ void rtc_sleep_get_default_config(uint32_t sleep_flags, rtc_sleep_config_t *out_
 
     if (sleep_flags & RTC_SLEEP_PD_DIG) {
         unsigned atten_deep_sleep = RTC_CNTL_DBG_ATTEN_DEEPSLEEP_DEFAULT;
-#if CONFIG_ESP32C3_REV_MIN < 3
-        if (efuse_hal_get_minor_chip_version() < 3) {
+#if CONFIG_ESP32C3_REV_MIN_FULL < 3
+        if (!ESP_CHIP_REV_ABOVE(efuse_hal_chip_revision(), 3)) {
             atten_deep_sleep = 0; /* workaround for deep sleep issue in high temp on ECO2 and below */
         }
 #endif
@@ -155,7 +159,6 @@ void rtc_sleep_init(rtc_sleep_config_t cfg)
         CLEAR_PERI_REG_MASK(RTC_CNTL_ANA_CONF_REG,
                             RTC_CNTL_CKGEN_I2C_PU | RTC_CNTL_PLL_I2C_PU |
                             RTC_CNTL_RFRX_PBUS_PU | RTC_CNTL_TXRF_I2C_PU);
-        CLEAR_PERI_REG_MASK(RTC_CNTL_OPTIONS0_REG, RTC_CNTL_BB_I2C_FORCE_PU);
     } else {
         SET_PERI_REG_MASK(RTC_CNTL_BIAS_CONF_REG, RTC_CNTL_DG_VDD_DRV_B_SLP_EN);
         REG_SET_FIELD(RTC_CNTL_BIAS_CONF_REG, RTC_CNTL_DG_VDD_DRV_B_SLP, RTC_CNTL_DG_VDD_DRV_B_SLP_DEFAULT);
@@ -195,6 +198,17 @@ void rtc_sleep_set_wakeup_time(uint64_t t)
     WRITE_PERI_REG(RTC_CNTL_SLP_TIMER0_REG, t & UINT32_MAX);
     WRITE_PERI_REG(RTC_CNTL_SLP_TIMER1_REG, t >> 32);
 }
+
+#if CONFIG_ESP_SLEEP_SYSTIMER_STALL_WORKAROUND
+void rtc_sleep_systimer_enable(bool en)
+{
+    if (en) {
+        REG_SET_BIT(SYSTIMER_CONF_REG, SYSTIMER_TIMER_UNIT1_WORK_EN);
+    } else {
+        REG_CLR_BIT(SYSTIMER_CONF_REG, SYSTIMER_TIMER_UNIT1_WORK_EN);
+    }
+}
+#endif
 
 static uint32_t rtc_sleep_finish(uint32_t lslp_mem_inf_fpu);
 

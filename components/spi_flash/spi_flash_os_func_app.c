@@ -21,6 +21,7 @@
 
 #include "driver/spi_common_internal.h"
 
+#define SPI_FLASH_CACHE_NO_DISABLE  (CONFIG_SPI_FLASH_AUTO_SUSPEND || (CONFIG_SPIRAM_FETCH_INSTRUCTIONS && CONFIG_SPIRAM_RODATA))
 static const char TAG[] = "spi_flash";
 
 /*
@@ -59,14 +60,14 @@ static inline IRAM_ATTR bool on_spi1_check_yield(spi1_app_func_arg_t* ctx);
 
 IRAM_ATTR static void cache_enable(void* arg)
 {
-#ifndef CONFIG_SPI_FLASH_AUTO_SUSPEND
+#if !SPI_FLASH_CACHE_NO_DISABLE
     g_flash_guard_default_ops.end();
 #endif
 }
 
 IRAM_ATTR static void cache_disable(void* arg)
 {
-#ifndef CONFIG_SPI_FLASH_AUTO_SUSPEND
+#if !SPI_FLASH_CACHE_NO_DISABLE
     g_flash_guard_default_ops.start();
 #endif
 }
@@ -236,33 +237,39 @@ esp_err_t esp_flash_init_os_functions(esp_flash_t *chip, int host_id, int* out_d
         dev_handle = register_dev(host_id);
     }
 
-    if (host_id == SPI1_HOST) {
-        //SPI1
-        chip->os_func = &esp_flash_spi1_default_os_functions;
-        chip->os_func_data = heap_caps_malloc(sizeof(spi1_app_func_arg_t),
-                                         MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
-        if (chip->os_func_data == NULL) {
-            return ESP_ERR_NO_MEM;
-        }
-        *(spi1_app_func_arg_t*) chip->os_func_data = (spi1_app_func_arg_t) {
-            .common_arg = {
+    switch (host_id)
+    {
+        case SPI1_HOST:
+            //SPI1
+            chip->os_func = &esp_flash_spi1_default_os_functions;
+            chip->os_func_data = heap_caps_malloc(sizeof(spi1_app_func_arg_t),
+                                            MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+            if (chip->os_func_data == NULL) {
+                return ESP_ERR_NO_MEM;
+            }
+            *(spi1_app_func_arg_t*) chip->os_func_data = (spi1_app_func_arg_t) {
+                .common_arg = {
+                    .dev_lock = dev_handle,
+                },
+                .no_protect = true,
+            };
+            break;
+        case SPI2_HOST:
+#if SOC_SPI_PERIPH_NUM > 2
+        case SPI3_HOST:
+#endif
+            //SPI2, SPI3
+            chip->os_func = &esp_flash_spi23_default_os_functions;
+            chip->os_func_data = heap_caps_malloc(sizeof(app_func_arg_t),
+                                            MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+            if (chip->os_func_data == NULL) {
+                return ESP_ERR_NO_MEM;
+            }
+            *(app_func_arg_t*) chip->os_func_data = (app_func_arg_t) {
                 .dev_lock = dev_handle,
-            },
-            .no_protect = true,
-        };
-    } else if (host_id == SPI2_HOST || host_id == SPI3_HOST) {
-        //SPI2, SPI3
-        chip->os_func = &esp_flash_spi23_default_os_functions;
-        chip->os_func_data = heap_caps_malloc(sizeof(app_func_arg_t),
-                                         MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
-        if (chip->os_func_data == NULL) {
-            return ESP_ERR_NO_MEM;
-        }
-        *(app_func_arg_t*) chip->os_func_data = (app_func_arg_t) {
-                .dev_lock = dev_handle,
-        };
-    } else {
-        return ESP_ERR_INVALID_ARG;
+            };
+            break;
+        default: return ESP_ERR_INVALID_ARG;
     }
 
     // Bus lock not initialized, the device ID should be directly given by application.
