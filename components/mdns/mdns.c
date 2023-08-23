@@ -2578,6 +2578,9 @@ static int _mdns_check_aaaa_collision(esp_ip6_addr_t * ip, mdns_if_t tcpip_if)
 
 static bool _hostname_is_ours(const char * hostname)
 {
+    if (_mdns_server == NULL || hostname == NULL || _mdns_server->hostname == NULL) {
+        return false;
+    }
     if (strcasecmp(hostname, _mdns_server->hostname) == 0) {
         return true;
     }
