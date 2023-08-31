@@ -24,7 +24,7 @@ static const char * MDNS_SUB_STR = "_sub";
 
 mdns_server_t * _mdns_server = NULL;
 static mdns_host_item_t * _mdns_host_list = NULL;
-static mdns_host_item_t _mdns_self_host;
+static mdns_host_item_t _mdns_self_host = {.hostname = NULL, .address_list = NULL, .next = NULL};
 
 static const char *TAG = "MDNS";
 
@@ -4924,6 +4924,14 @@ void mdns_free(void)
     vSemaphoreDelete(_mdns_server->lock);
     free(_mdns_server);
     _mdns_server = NULL;
+}
+
+bool mdns_is_initialized() {
+    return _mdns_server != NULL;
+}
+
+bool mdns_has_hostname() {
+    return mdns_is_initialized() && _mdns_server->hostname != NULL &&  _mdns_self_host.hostname != NULL;
 }
 
 esp_err_t mdns_hostname_set(const char * hostname)

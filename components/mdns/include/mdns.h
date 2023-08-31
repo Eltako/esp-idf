@@ -113,6 +113,18 @@ esp_err_t mdns_init(void);
 void mdns_free(void);
 
 /**
+ * @brief  Check whether mDNS is running
+ *
+ */
+bool mdns_is_initialized();
+
+/**
+ * @brief  Check whether mDNS has a hostname set
+ *
+ */
+bool mdns_has_hostname();
+
+/**
  * @brief  Set the hostname for mDNS server
  *         required if you want to advertise services
  *
