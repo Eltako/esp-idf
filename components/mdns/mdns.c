@@ -24,7 +24,7 @@ static const char * MDNS_SUB_STR = "_sub";
 
 mdns_server_t * _mdns_server = NULL;
 static mdns_host_item_t * _mdns_host_list = NULL;
-static mdns_host_item_t _mdns_self_host;
+static mdns_host_item_t _mdns_self_host = {.hostname = NULL, .address_list = NULL, .next = NULL};
 
 static const char *TAG = "MDNS";
 
@@ -1321,18 +1321,20 @@ static void _mdns_remove_scheduled_answer(mdns_if_t tcpip_if, mdns_ip_protocol_t
     while (q) {
         if (q->tcpip_if == tcpip_if && q->ip_protocol == ip_protocol && q->distributed) {
             mdns_out_answer_t * a = q->answers;
-            if (a->type == type && a->service == service->service) {
-                q->answers = q->answers->next;
-                free(a);
-            } else {
-                while (a->next) {
-                    if (a->next->type == type && a->next->service == service->service) {
-                        mdns_out_answer_t * b = a->next;
-                        a->next = b->next;
-                        free(b);
-                        break;
+            if (a) {
+                if (a->type == type && a->service == service->service) {
+                    q->answers = q->answers->next;
+                    free(a);
+                } else {
+                    while (a->next) {
+                        if (a->next->type == type && a->next->service == service->service) {
+                            mdns_out_answer_t *b = a->next;
+                            a->next = b->next;
+                            free(b);
+                            break;
+                        }
+                        a = a->next;
                     }
-                    a = a->next;
                 }
             }
         }
@@ -2578,6 +2580,9 @@ static int _mdns_check_aaaa_collision(esp_ip6_addr_t * ip, mdns_if_t tcpip_if)
 
 static bool _hostname_is_ours(const char * hostname)
 {
+    if (_mdns_server == NULL || hostname == NULL || _mdns_server->hostname == NULL) {
+        return false;
+    }
     if (strcasecmp(hostname, _mdns_server->hostname) == 0) {
         return true;
     }
@@ -4921,6 +4926,14 @@ void mdns_free(void)
     vSemaphoreDelete(_mdns_server->lock);
     free(_mdns_server);
     _mdns_server = NULL;
+}
+
+bool mdns_is_initialized() {
+    return _mdns_server != NULL;
+}
+
+bool mdns_has_hostname() {
+    return mdns_is_initialized() && _mdns_server->hostname != NULL &&  _mdns_self_host.hostname != NULL;
 }
 
 esp_err_t mdns_hostname_set(const char * hostname)
