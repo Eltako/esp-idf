@@ -13,7 +13,6 @@ menu "NVS Security Provider"
 
         config NVS_SEC_KEY_PROTECT_USING_FLASH_ENC
             bool "Using Flash Encryption"
-            depends on SECURE_FLASH_ENC_ENABLED
             help
                 Protect the NVS Encryption Keys using Flash Encryption
                 Requires a separate 'nvs_keys' partition (which will be encrypted by flash encryption)

@@ -2,8 +2,8 @@ menu "NVS"
 
     config NVS_ENCRYPTION
         bool "Enable NVS encryption"
-        depends on SECURE_FLASH_ENC_ENABLED || SOC_HMAC_SUPPORTED
         default y if SECURE_FLASH_ENC_ENABLED
+        default n if !SECURE_FLASH_ENC_ENABLED
         help
             This option enables encryption for NVS. When enabled, XTS-AES is used to encrypt
             the complete NVS data, except the page headers. It requires XTS encryption keys
