@@ -89,6 +89,15 @@ CONFIGS_HW_STACK_GUARD_DUAL_CORE = [
     pytest.param('panic', marks=TARGETS_RISCV_DUAL_CORE),
 ]
 
+CONFIG_CAPTURE_DRAM = [pytest.param('coredump_flash_capture_dram', marks=TARGETS_ALL)]
+
+CONFIG_COREDUMP_SUMMARY = [pytest.param('coredump_flash_elf_sha', marks=TARGETS_ALL)]
+
+CONFIG_COREDUMP_SUMMARY_FLASH_ENCRYPTED = [
+    pytest.param('coredump_flash_encrypted', marks=[pytest.mark.esp32, pytest.mark.esp32c3]),
+    pytest.param('coredump_flash_encrypted_coredump_plain', marks=[pytest.mark.esp32, pytest.mark.esp32c3])
+]
+
 # Panic abort information will start with this string.
 PANIC_ABORT_PREFIX = 'Panic reason: '
 
@@ -101,7 +110,7 @@ def common_test(dut: PanicTestDut, config: str, expected_backtrace: Optional[Lis
                 expected_coredump: Optional[List[Union[str, re.Pattern]]] = None) -> None:
     if 'gdbstub' in config:
         dut.expect_exact('Entering gdb stub now.')
-        dut.start_gdb()
+        dut.start_gdb_for_gdbstub()
         frames = dut.gdb_backtrace()
         if expected_backtrace is not None:
             dut.verify_gdb_backtrace(frames, expected_backtrace)
@@ -267,14 +276,12 @@ def test_cache_error(dut: PanicTestDut, config: str, test_func_name: str) -> Non
     if dut.target in ['esp32c3', 'esp32c2']:
         dut.expect_gme('Cache error')
         dut.expect_exact('Cached memory region accessed while ibus or cache is disabled')
-    elif dut.target in ['esp32c6', 'esp32h2']:
+    elif dut.target in ['esp32c6', 'esp32h2', 'esp32p4']:
         dut.expect_gme('Cache error')
         dut.expect_exact('Cache access error')
     elif dut.target in ['esp32s2']:
         # Cache error interrupt is not enabled, IDF-1558
         dut.expect_gme('IllegalInstruction')
-    elif dut.target in ['esp32p4']:  # TODO IDF-7515
-        dut.expect_gme('Instruction access fault')
     else:
         dut.expect_gme('Cache disabled but cached memory region accessed')
     dut.expect_reg_dump(0)
@@ -531,6 +538,42 @@ def test_assert_cache_disabled(
         ] + get_default_backtrace(test_func_name),
         expected_coredump=[coredump_pattern]
     )
+
+
+def cache_error_log_check(dut: PanicTestDut) -> None:
+    if dut.is_xtensa:
+        if dut.target == 'esp32s3':
+            dut.expect_exact("Guru Meditation Error: Core  / panic'ed (Cache disabled but cached memory region accessed)")
+            dut.expect_exact('Write back error occurred while dcache tries to write back to flash')
+            dut.expect_exact('The following backtrace may not indicate the code that caused Cache invalid access')
+        else:
+            dut.expect_exact("Guru Meditation Error: Core  0 panic'ed (LoadStoreError)")
+    else:
+        dut.expect_exact("Guru Meditation Error: Core  0 panic'ed (Store access fault)")
+    dut.expect_reg_dump(0)
+    if dut.target == 'esp32s3':
+        dut.expect_reg_dump(1)
+    dut.expect_cpu_reset()
+
+
+@pytest.mark.generic
+@pytest.mark.supported_targets
+@pytest.mark.parametrize('config', ['panic'], indirect=True)
+def test_assert_cache_write_back_error_can_print_backtrace(
+    dut: PanicTestDut, config: str, test_func_name: str
+) -> None:
+    dut.run_test_func(test_func_name)
+    cache_error_log_check(dut)
+
+
+@pytest.mark.generic
+@pytest.mark.supported_targets
+@pytest.mark.parametrize('config', ['panic'], indirect=True)
+def test_assert_cache_write_back_error_can_print_backtrace2(
+    dut: PanicTestDut, config: str, test_func_name: str
+) -> None:
+    dut.run_test_func(test_func_name)
+    cache_error_log_check(dut)
 
 
 @pytest.mark.esp32
@@ -885,7 +928,7 @@ def test_gdbstub_coredump(dut: PanicTestDut) -> None:
     dut.process_coredump_uart()
 
     dut.expect_exact('Entering gdb stub now.')
-    dut.start_gdb()
+    dut.start_gdb_for_gdbstub()
     frames = dut.gdb_backtrace()
     dut.verify_gdb_backtrace(frames, get_default_backtrace(test_func_name))
     dut.revert_log_level()
@@ -937,3 +980,64 @@ def test_illegal_access(dut: PanicTestDut, config: str, test_func_name: str) -> 
         dut.expect_backtrace()
         dut.expect_elf_sha256()
         dut.expect_none('Guru Meditation')
+
+
+@pytest.mark.parametrize('config', CONFIG_CAPTURE_DRAM, indirect=True)
+@pytest.mark.generic
+def test_capture_dram(dut: PanicTestDut, config: str, test_func_name: str) -> None:
+    dut.run_test_func(test_func_name)
+    regex_pattern = rb'assert failed:[\s\w()]*?\s[.\w/]*\.(?:c|cpp|h|hpp):\d.*$'
+    dut.expect(re.compile(regex_pattern, re.MULTILINE))
+    if dut.is_xtensa:
+        dut.expect_backtrace()
+    else:
+        dut.expect_stack_dump()
+    dut.expect_elf_sha256()
+    dut.expect_none(['Guru Meditation', 'Re-entered core dump'])
+
+    dut.expect_exact('Save core dump to flash...')
+    dut.expect_exact('Core dump has been saved to flash.')
+    dut.expect('Rebooting...')
+
+    core_elf_file = dut.process_coredump_flash()
+    dut.start_gdb_for_coredump(core_elf_file)
+
+    assert dut.gdb_data_eval_expr('g_data_var') == '43'
+    assert dut.gdb_data_eval_expr('g_bss_var') == '55'
+    assert re.search(r'0x[0-9a-fA-F]+ "Coredump Test"', dut.gdb_data_eval_expr('g_heap_ptr'))
+    assert int(dut.gdb_data_eval_expr('g_cd_iram')) == 0x4243
+    assert int(dut.gdb_data_eval_expr('g_cd_dram')) == 0x4344
+
+    if dut.target != 'esp32c2':
+        assert int(dut.gdb_data_eval_expr('g_rtc_data_var')) == 0x55AA
+        assert int(dut.gdb_data_eval_expr('g_rtc_fast_var')) == 0xAABBCCDD
+
+
+def _test_coredump_summary(dut: PanicTestDut, flash_encrypted: bool, coredump_encrypted: bool) -> None:
+    dut.run_test_func('test_setup_coredump_summary')
+    dut.expect_cpu_reset()
+    if flash_encrypted:
+        dut.expect_exact('Flash encryption mode is DEVELOPMENT (not secure)')
+    dut.run_test_func('test_coredump_summary')
+    if flash_encrypted and not coredump_encrypted:
+        dut.expect_exact('Flash encryption enabled in hardware and core dump partition is not encrypted!')
+        return
+    dut.expect_elf_sha256('App ELF file SHA256: ')
+    dut.expect_exact('Crashed task: main')
+    if dut.is_xtensa:
+        dut.expect_exact('Exception cause: 29')
+    else:
+        dut.expect_exact('Exception cause: 7')
+    dut.expect(PANIC_ABORT_PREFIX + r'assert failed:[\s\w()]*?\s[.\w/]*\.(?:c|cpp|h|hpp):\d.*$')
+
+
+@pytest.mark.generic
+@pytest.mark.parametrize('config', CONFIG_COREDUMP_SUMMARY, indirect=True)
+def test_coredump_summary(dut: PanicTestDut) -> None:
+    _test_coredump_summary(dut, False, False)
+
+
+@pytest.mark.flash_encryption
+@pytest.mark.parametrize('config', CONFIG_COREDUMP_SUMMARY_FLASH_ENCRYPTED, indirect=True)
+def test_coredump_summary_flash_encrypted(dut: PanicTestDut, config: str) -> None:
+    _test_coredump_summary(dut, True, config == 'coredump_flash_encrypted')

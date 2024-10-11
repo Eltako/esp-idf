@@ -33,6 +33,7 @@
 #include "esp_owe_i.h"
 
 #include "esp_wps.h"
+#include "esp_wps_i.h"
 #include "eap_server/eap.h"
 #include "eapol_auth/eapol_auth_sm.h"
 #include "ap/ieee802_1x.h"
@@ -179,14 +180,14 @@ bool wpa_ap_rx_eapol(void *hapd_data, void *sm_data, u8 *data, size_t data_len)
 
 void wpa_ap_get_peer_spp_msg(void *sm_data, bool *spp_cap, bool *spp_req)
 {
-    struct wpa_state_machine *sm = (struct wpa_state_machine *)sm_data;
+    struct sta_info *sta = sm_data;
 
-    if (!sm) {
+    if (!sta || !sta->wpa_sm) {
         return;
     }
 
-    *spp_cap = sm->spp_sup.capable;
-    *spp_req = sm->spp_sup.require;
+    *spp_cap = sta->wpa_sm->spp_sup.capable;
+    *spp_req = sta->wpa_sm->spp_sup.require;
 }
 
 bool wpa_deattach(void)
@@ -302,6 +303,11 @@ static void wpa_sta_disconnected_cb(uint8_t reason_code)
             wpa_sta_clear_curr_pmksa();
         }
         break;
+    }
+
+    struct wps_sm_funcs *wps_sm_cb = wps_get_wps_sm_cb();
+    if (wps_sm_cb && wps_sm_cb->wps_sm_notify_deauth) {
+        wps_sm_cb->wps_sm_notify_deauth();
     }
 #ifdef CONFIG_OWE_STA
     owe_deinit();

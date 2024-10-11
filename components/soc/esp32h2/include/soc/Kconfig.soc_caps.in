@@ -179,6 +179,10 @@ config SOC_APM_SUPPORTED
     bool
     default y
 
+config SOC_APM_CTRL_FILTER_SUPPORTED
+    bool
+    default y
+
 config SOC_PMU_SUPPORTED
     bool
     default y
@@ -612,6 +616,10 @@ config SOC_I2C_SLAVE_SUPPORT_I2CRAM_ACCESS
     default y
 
 config SOC_I2C_SLAVE_SUPPORT_SLAVE_UNMATCH
+    bool
+    default y
+
+config SOC_I2C_SUPPORT_SLEEP_RETENTION
     bool
     default y
 
@@ -1123,6 +1131,10 @@ config SOC_MWDT_SUPPORT_XTAL
     bool
     default y
 
+config SOC_MWDT_SUPPORT_SLEEP_RETENTION
+    bool
+    default y
+
 config SOC_TWAI_CONTROLLER_NUM
     int
     default 1
@@ -1244,6 +1256,10 @@ config SOC_UART_SUPPORT_WAKEUP_INT
     default y
 
 config SOC_UART_SUPPORT_FSM_TX_WAIT_SEND
+    bool
+    default y
+
+config SOC_UART_SUPPORT_SLEEP_RETENTION
     bool
     default y
 

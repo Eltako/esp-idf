@@ -587,7 +587,6 @@ components/soc/esp32/include/soc/uhci_struct.h
 components/soc/esp32/include/soc/wdev_reg.h
 components/soc/esp32/ledc_periph.c
 components/soc/esp32/spi_periph.c
-components/soc/esp32/uart_periph.c
 components/soc/esp32c3/i2c_periph.c
 components/soc/esp32c3/include/soc/apb_saradc_reg.h
 components/soc/esp32c3/include/soc/assist_debug_reg.h
@@ -618,7 +617,6 @@ components/soc/esp32c3/include/soc/usb_serial_jtag_struct.h
 components/soc/esp32c3/include/soc/wdev_reg.h
 components/soc/esp32c3/interrupts.c
 components/soc/esp32c3/ledc_periph.c
-components/soc/esp32c3/uart_periph.c
 components/soc/esp32s2/adc_periph.c
 components/soc/esp32s2/dedic_gpio_periph.c
 components/soc/esp32s2/i2c_periph.c
@@ -656,7 +654,6 @@ components/soc/esp32s2/include/soc/usb_wrap_reg.h
 components/soc/esp32s2/include/soc/usb_wrap_struct.h
 components/soc/esp32s2/include/soc/wdev_reg.h
 components/soc/esp32s2/ledc_periph.c
-components/soc/esp32s2/uart_periph.c
 components/soc/esp32s3/dedic_gpio_periph.c
 components/soc/esp32s3/i2c_periph.c
 components/soc/esp32s3/include/soc/apb_saradc_reg.h
@@ -692,7 +689,6 @@ components/soc/esp32s3/include/soc/rtc_io_reg.h
 components/soc/esp32s3/include/soc/rtc_io_struct.h
 components/soc/esp32s3/include/soc/sdmmc_pins.h
 components/soc/esp32s3/include/soc/sdmmc_reg.h
-components/soc/esp32s3/include/soc/sens_reg.h
 components/soc/esp32s3/include/soc/sensitive_reg.h
 components/soc/esp32s3/include/soc/sensitive_struct.h
 components/soc/esp32s3/include/soc/soc_ulp.h
@@ -716,7 +712,6 @@ components/soc/esp32s3/include/soc/usb_wrap_reg.h
 components/soc/esp32s3/include/soc/usb_wrap_struct.h
 components/soc/esp32s3/include/soc/wdev_reg.h
 components/soc/esp32s3/ledc_periph.c
-components/soc/esp32s3/uart_periph.c
 components/soc/include/soc/dedic_gpio_periph.h
 components/soc/include/soc/gpio_periph.h
 components/soc/include/soc/ledc_periph.h
@@ -731,7 +726,6 @@ components/spi_flash/spi_flash_chip_boya.c
 components/spi_flash/spi_flash_chip_issi.c
 components/tcp_transport/include/esp_transport_ws.h
 components/vfs/include/esp_vfs_common.h
-components/wifi_provisioning/include/wifi_provisioning/scheme_ble.h
 components/wifi_provisioning/include/wifi_provisioning/scheme_console.h
 components/wifi_provisioning/include/wifi_provisioning/scheme_softap.h
 components/wifi_provisioning/include/wifi_provisioning/wifi_scan.h
@@ -1203,7 +1197,6 @@ tools/templates/sample_component/main.c
 tools/test_apps/build_system/embed_test/main/test_main.c
 tools/test_apps/build_system/ldgen_test/main/src1.c
 tools/test_apps/build_system/ldgen_test/main/src2.c
-tools/test_apps/build_system/ldgen_test/main/test_main.c
 tools/test_apps/peripherals/i2c_wifi/main/i2c_wifi_main.c
 tools/test_apps/protocols/esp_netif/build_config/main/init_macro.h
 tools/test_apps/protocols/esp_netif/build_config/main/main.cpp

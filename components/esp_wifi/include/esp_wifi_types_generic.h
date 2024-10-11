@@ -817,6 +817,8 @@ typedef enum {
     WIFI_EVENT_ITWT_PROBE,              /**< iTWT probe */
     WIFI_EVENT_ITWT_SUSPEND,            /**< iTWT suspend */
     WIFI_EVENT_TWT_WAKEUP,              /**< TWT wakeup */
+    WIFI_EVENT_BTWT_SETUP,              /**< bTWT setup */
+    WIFI_EVENT_BTWT_TEARDOWN,           /**< bTWT teardown*/
 
     WIFI_EVENT_NAN_STARTED,              /**< NAN Discovery has started */
     WIFI_EVENT_NAN_STOPPED,              /**< NAN Discovery has stopped */
@@ -879,6 +881,7 @@ typedef struct {
 typedef enum {
     WPS_FAIL_REASON_NORMAL = 0,     /**< WPS normal fail reason */
     WPS_FAIL_REASON_RECV_M2D,       /**< WPS receive M2D frame */
+    WPS_FAIL_REASON_RECV_DEAUTH,    /**< Recv deauth from AP while wps handshake */
     WPS_FAIL_REASON_MAX
 } wifi_event_sta_wps_fail_reason_t;
 

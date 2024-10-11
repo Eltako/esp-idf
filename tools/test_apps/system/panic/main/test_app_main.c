@@ -98,6 +98,9 @@ void app_main(void)
 #if CONFIG_ESP_COREDUMP_ENABLE_TO_FLASH && CONFIG_SPIRAM_ALLOW_STACK_EXTERNAL_MEMORY
     HANDLE_TEST(test_name, test_panic_extram_stack);
 #endif
+#if CONFIG_ESP_COREDUMP_CAPTURE_DRAM
+    HANDLE_TEST(test_name, test_capture_dram);
+#endif
 #if !CONFIG_FREERTOS_UNICORE
     HANDLE_TEST(test_name, test_task_wdt_cpu1);
 #endif
@@ -111,6 +114,12 @@ void app_main(void)
     HANDLE_TEST(test_name, test_ub);
     HANDLE_TEST(test_name, test_assert);
     HANDLE_TEST(test_name, test_assert_cache_disabled);
+    HANDLE_TEST(test_name, test_assert_cache_write_back_error_can_print_backtrace);
+    HANDLE_TEST(test_name, test_assert_cache_write_back_error_can_print_backtrace2);
+#if CONFIG_ESP_COREDUMP_ENABLE_TO_FLASH && CONFIG_ESP_COREDUMP_DATA_FORMAT_ELF
+    HANDLE_TEST(test_name, test_setup_coredump_summary);
+    HANDLE_TEST(test_name, test_coredump_summary);
+#endif
 #if CONFIG_IDF_TARGET_ESP32
     HANDLE_TEST(test_name, test_illegal_access);
 #endif

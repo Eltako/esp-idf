@@ -71,8 +71,8 @@
 #include "soc/hp_sys_clkrst_reg.h"
 #endif
 
-#if SOC_KEY_MANAGER_SUPPORTED
-#include "hal/key_mgr_hal.h"
+#if SOC_KEY_MANAGER_ECDSA_KEY_DEPLOY || SOC_KEY_MANAGER_FE_KEY_DEPLOY
+#include "hal/key_mgr_ll.h"
 #endif
 
 #include "esp_private/rtc_clk.h"
@@ -148,11 +148,6 @@ extern int _mtvt_table;
 
 static const char *TAG = "cpu_start";
 
-#if CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY
-extern int _ext_ram_bss_start;
-extern int _ext_ram_bss_end;
-#endif
-
 #ifdef CONFIG_ESP32_IRAM_AS_8BIT_ACCESSIBLE_MEMORY
 extern int _iram_bss_start;
 extern int _iram_bss_end;
@@ -224,7 +219,7 @@ void IRAM_ATTR call_start_cpu1(void)
 #if CONFIG_ESP_CONSOLE_NONE
     esp_rom_install_channel_putc(1, NULL);
     esp_rom_install_channel_putc(2, NULL);
-#else // CONFIG_ESP_CONSOLE_NONE
+#elif !CONFIG_ESP_CONSOLE_USB_CDC
     esp_rom_install_uart_printf();
     esp_rom_output_set_as_console(CONFIG_ESP_CONSOLE_ROM_SERIAL_PORT_NUM);
 #endif
@@ -314,13 +309,22 @@ static void start_other_core(void)
     }
 #endif
 
-#if SOC_KEY_MANAGER_SUPPORTED
     // The following operation makes the Key Manager to use eFuse key for ECDSA and XTS-AES operation by default
     // This is to keep the default behavior same as the other chips
     // If the Key Manager configuration is already locked then following operation does not have any effect
-    key_mgr_hal_set_key_usage(ESP_KEY_MGR_ECDSA_KEY, ESP_KEY_MGR_USE_EFUSE_KEY);
-    key_mgr_hal_set_key_usage(ESP_KEY_MGR_XTS_AES_128_KEY, ESP_KEY_MGR_USE_EFUSE_KEY);
+#if SOC_KEY_MANAGER_ECDSA_KEY_DEPLOY || SOC_KEY_MANAGER_FE_KEY_DEPLOY
+    // Enable key manager clock
+    // Using ll APIs which do not require critical section
+    _key_mgr_ll_enable_bus_clock(true);
+    _key_mgr_ll_enable_peripheral_clock(true);
+#if SOC_KEY_MANAGER_ECDSA_KEY_DEPLOY
+    key_mgr_ll_set_key_usage(ESP_KEY_MGR_ECDSA_KEY, ESP_KEY_MGR_USE_EFUSE_KEY);
 #endif
+#if SOC_KEY_MANAGER_FE_KEY_DEPLOY
+    key_mgr_ll_set_key_usage(ESP_KEY_MGR_XTS_AES_128_KEY, ESP_KEY_MGR_USE_EFUSE_KEY);
+#endif
+#endif /* SOC_KEY_MANAGER_ECDSA_KEY_DEPLOY || SOC_KEY_MANAGER_FE_KEY_DEPLOY */
+
     ets_set_appcpu_boot_addr((uint32_t)call_start_cpu1);
 
     bool cpus_up = false;
@@ -335,6 +339,17 @@ static void start_other_core(void)
 }
 
 #if !SOC_CACHE_INTERNAL_MEM_VIA_L1CACHE
+#if CONFIG_IDF_TARGET_ESP32
+static void restore_app_mmu_from_pro_mmu(void)
+{
+    const int mmu_reg_num = 2048;
+    volatile uint32_t* from = (uint32_t*)DR_REG_FLASH_MMU_TABLE_PRO;
+    volatile uint32_t* to = (uint32_t*)DR_REG_FLASH_MMU_TABLE_APP;
+    for (int i = 0; i < mmu_reg_num; i++) {
+        *(to++) = *(from++);
+    }
+}
+#endif
 // This function is needed to make the multicore app runnable on a unicore bootloader (built with FREERTOS UNICORE).
 // It does some cache settings for other CPUs.
 void IRAM_ATTR do_multicore_settings(void)
@@ -346,9 +361,11 @@ void IRAM_ATTR do_multicore_settings(void)
         Cache_Read_Disable(1);
         Cache_Flush(1);
         DPORT_REG_SET_BIT(DPORT_APP_CACHE_CTRL1_REG, DPORT_APP_CACHE_MMU_IA_CLR);
+        mmu_init(1);
         DPORT_REG_CLR_BIT(DPORT_APP_CACHE_CTRL1_REG, DPORT_APP_CACHE_MMU_IA_CLR);
         // We do not enable cache for CPU1 now because it will be done later in start_other_core().
     }
+    restore_app_mmu_from_pro_mmu();
 #endif
 
     cache_bus_mask_t cache_bus_mask_core0 = cache_ll_l1_get_enabled_bus(0);
@@ -541,6 +558,10 @@ void IRAM_ATTR call_start_cpu0(void)
     // For Octal flash, it's hard to implement a read_id function in OPI mode for all vendors.
     // So we have to read it here in SPI mode, before entering the OPI mode.
     bootloader_flash_update_id();
+
+    // Configure the power related stuff. After this the MSPI timing tuning can be done.
+    esp_rtc_init();
+
     /**
      * This function initialise the Flash chip to the user-defined settings.
      *
@@ -549,14 +570,9 @@ void IRAM_ATTR call_start_cpu0(void)
      * In this stage, we re-configure the Flash (and MSPI) to required configuration
      */
     spi_flash_init_chip_state();
-
-    // In earlier version of ESP-IDF, the PLL provided by bootloader is not stable enough.
-    // Do calibration again here so that we can use better clock for the timing tuning.
-#if CONFIG_ESP_SYSTEM_BBPLL_RECALIB
-    rtc_clk_recalib_bbpll();
-#endif
 #if SOC_MEMSPI_SRC_FREQ_120M
-    // This function needs to be called when PLL is enabled
+    // This function needs to be called when PLL is enabled. Needs to be called after spi_flash_init_chip_state in case
+    // some state of flash is modified.
     mspi_timing_flash_tuning();
 #endif
 
@@ -684,7 +700,7 @@ void IRAM_ATTR call_start_cpu0(void)
 #endif // !CONFIG_APP_BUILD_TYPE_PURE_RAM_APP
 
 #if CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY
-    memset(&_ext_ram_bss_start, 0, (&_ext_ram_bss_end - &_ext_ram_bss_start) * sizeof(_ext_ram_bss_start));
+    esp_psram_bss_init();
 #endif
 
 //Enable trace memory and immediately start trace.

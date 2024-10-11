@@ -180,6 +180,11 @@ else() # Regular app build
         # For ESP32S2, inclusion of ROM driver do not depend on CONFIG_SPI_FLASH_ROM_IMPL
         rom_linker_script("spiflash_legacy")
 
+    elseif(target STREQUAL "esp32c2")
+        if(CONFIG_ESP32C2_REV_MIN_FULL GREATER_EQUAL 200)
+            rom_linker_script("eco4")
+        endif()
+
     elseif(target STREQUAL "esp32c3")
 
         if(CONFIG_ESP32C3_REV_MIN_FULL GREATER_EQUAL 3)
@@ -204,7 +209,7 @@ else() # Regular app build
         rom_linker_script("newlib")
 
         if(CONFIG_ESP_ROM_HAS_NEWLIB_NANO_FORMAT AND CONFIG_NEWLIB_NANO_FORMAT)
-            if(NOT CONFIG_ESP_ROM_HAS_NEWLIB_32BIT_TIME)
+            if(NOT CONFIG_ESP_ROM_HAS_NEWLIB_32BIT_TIME AND NOT CONFIG_ESP_ROM_HAS_NEWLIB_NANO_PRINTF_FLOAT_BUG)
                 # Newlib-nano functions contains time_t related functions
                 # and cannot be used if they were compiled with 32 bit time_t
                 rom_linker_script("newlib-nano")
@@ -241,6 +246,10 @@ else() # Regular app build
 
     if(CONFIG_MBEDTLS_USE_CRYPTO_ROM_IMPL)
         rom_linker_script("mbedtls")
+        # For ESP32C2(ECO4), mbedTLS in ROM has been updated to v3.6.0-LTS
+        if(CONFIG_ESP32C2_REV_MIN_FULL GREATER_EQUAL 200)
+            rom_linker_script("mbedtls.eco4")
+        endif()
     endif()
 
     if(CONFIG_IDF_TARGET_ARCH_XTENSA)

@@ -47,7 +47,15 @@ config SOC_PCNT_SUPPORTED
     bool
     default y
 
+config SOC_LCDCAM_SUPPORTED
+    bool
+    default y
+
 config SOC_LCDCAM_CAM_SUPPORTED
+    bool
+    default y
+
+config SOC_LCDCAM_I80_LCD_SUPPORTED
     bool
     default y
 
@@ -207,6 +215,10 @@ config SOC_BOD_SUPPORTED
     bool
     default y
 
+config SOC_APM_SUPPORTED
+    bool
+    default y
+
 config SOC_PMU_SUPPORTED
     bool
     default y
@@ -239,6 +251,10 @@ config SOC_LP_I2C_SUPPORTED
     bool
     default y
 
+config SOC_LP_SPI_SUPPORTED
+    bool
+    default y
+
 config SOC_SPIRAM_SUPPORTED
     bool
     default y
@@ -264,6 +280,10 @@ config SOC_WDT_SUPPORTED
     default y
 
 config SOC_SPI_FLASH_SUPPORTED
+    bool
+    default y
+
+config SOC_TOUCH_SENSOR_SUPPORTED
     bool
     default y
 
@@ -791,6 +811,10 @@ config SOC_ISP_BF_SUPPORTED
     bool
     default y
 
+config SOC_ISP_CCM_SUPPORTED
+    bool
+    default y
+
 config SOC_ISP_DVP_SUPPORTED
     bool
     default y
@@ -820,6 +844,10 @@ config SOC_ISP_BF_TEMPLATE_X_NUMS
     default 3
 
 config SOC_ISP_BF_TEMPLATE_Y_NUMS
+    int
+    default 3
+
+config SOC_ISP_CCM_DIMENSION
     int
     default 3
 
@@ -979,25 +1007,21 @@ config SOC_RMT_SUPPORT_DMA
     bool
     default y
 
-config SOC_LCD_I80_BUSES
-    int
-    default 1
-
-config SOC_LCD_RGB_PANELS
-    int
-    default 1
-
-config SOC_LCD_I80_BUS_WIDTH
-    int
-    default 24
-
-config SOC_LCD_RGB_DATA_WIDTH
-    int
-    default 24
-
-config SOC_LCD_SUPPORT_RGB_YUV_CONV
+config SOC_LCD_I80_SUPPORTED
     bool
     default y
+
+config SOC_LCDCAM_I80_NUM_BUSES
+    int
+    default 1
+
+config SOC_LCDCAM_I80_BUS_WIDTH
+    int
+    default 24
+
+config SOC_LCDCAM_RGB_NUM_PANELS
+    int
+    default 1
 
 config SOC_MCPWM_GROUPS
     int
@@ -1251,7 +1275,19 @@ config SOC_SPI_MAX_PRE_DIVIDER
     int
     default 16
 
+config SOC_LP_SPI_PERIPH_NUM
+    bool
+    default y
+
+config SOC_LP_SPI_MAXIMUM_BUFFER_SIZE
+    int
+    default 64
+
 config SOC_SPI_MEM_SUPPORT_AUTO_WAIT_IDLE
+    bool
+    default y
+
+config SOC_SPI_MEM_SUPPORT_AUTO_SUSPEND
     bool
     default y
 
@@ -1279,6 +1315,14 @@ config SOC_MEMSPI_TIMING_TUNING_BY_DQS
     bool
     default y
 
+config SOC_SPI_MEM_SUPPORT_CACHE_32BIT_ADDR_MAP
+    bool
+    default y
+
+config SOC_SPI_PERIPH_SUPPORT_CONTROL_DUMMY_OUT
+    bool
+    default y
+
 config SOC_MEMSPI_SRC_FREQ_80M_SUPPORTED
     bool
     default y
@@ -1288,6 +1332,10 @@ config SOC_MEMSPI_SRC_FREQ_40M_SUPPORTED
     default y
 
 config SOC_MEMSPI_SRC_FREQ_20M_SUPPORTED
+    bool
+    default y
+
+config SOC_SPIRAM_XIP_SUPPORTED
     bool
     default y
 
@@ -1371,6 +1419,10 @@ config SOC_MWDT_SUPPORT_XTAL
     bool
     default y
 
+config SOC_MWDT_SUPPORT_SLEEP_RETENTION
+    bool
+    default y
+
 config SOC_TOUCH_SENSOR_VERSION
     int
     default 3
@@ -1378,6 +1430,18 @@ config SOC_TOUCH_SENSOR_VERSION
 config SOC_TOUCH_SENSOR_NUM
     int
     default 14
+
+config SOC_TOUCH_SUPPORT_SLEEP_WAKEUP
+    bool
+    default y
+
+config SOC_TOUCH_SUPPORT_WATERPROOF
+    bool
+    default y
+
+config SOC_TOUCH_SUPPORT_PROX_SENSING
+    bool
+    default y
 
 config SOC_TOUCH_PROXIMITY_CHANNEL_NUM
     int
@@ -1387,7 +1451,11 @@ config SOC_TOUCH_PROXIMITY_MEAS_DONE_SUPPORTED
     bool
     default y
 
-config SOC_TOUCH_SAMPLER_NUM
+config SOC_TOUCH_SUPPORT_FREQ_HOP
+    bool
+    default y
+
+config SOC_TOUCH_SAMPLE_CFG_NUM
     int
     default 3
 
@@ -1432,6 +1500,14 @@ config SOC_EFUSE_DIS_DOWNLOAD_MSPI
     default y
 
 config SOC_EFUSE_ECDSA_KEY
+    bool
+    default y
+
+config SOC_KEY_MANAGER_ECDSA_KEY_DEPLOY
+    bool
+    default y
+
+config SOC_KEY_MANAGER_FE_KEY_DEPLOY
     bool
     default y
 
@@ -1519,6 +1595,10 @@ config SOC_UART_HAS_LP_UART
     bool
     default y
 
+config SOC_UART_SUPPORT_SLEEP_RETENTION
+    bool
+    default y
+
 config SOC_UART_SUPPORT_FSM_TX_WAIT_SEND
     bool
     default y
@@ -1548,6 +1628,10 @@ config SOC_PM_EXT1_WAKEUP_BY_PMU
     default y
 
 config SOC_PM_SUPPORT_WIFI_WAKEUP
+    bool
+    default y
+
+config SOC_PM_SUPPORT_TOUCH_SENSOR_WAKEUP
     bool
     default y
 
@@ -1694,3 +1778,7 @@ config SOC_LCDCAM_CAM_PERIPH_NUM
 config SOC_LCDCAM_CAM_DATA_WIDTH_MAX
     int
     default 16
+
+config SOC_LP_CORE_SUPPORT_ETM
+    bool
+    default y

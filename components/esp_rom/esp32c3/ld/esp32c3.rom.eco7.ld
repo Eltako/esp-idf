@@ -115,7 +115,6 @@ r_lld_con_evt_time_update_eco = 0x40001d0c;
 r_lld_con_start_eco = 0x40001d10;
 r_lld_con_frm_isr_eco = 0x40001d14;
 r_lld_con_tx_eco = 0x40001d18;
-r_lld_scan_evt_start_cbk_eco = 0x40001d20;
 r_lld_ext_scan_dynamic_pti_process_eco = 0x40001d28;
 r_lld_scan_frm_eof_isr_eco = 0x40001d2c;
 r_lld_sync_start_eco = 0x40001d30;
@@ -142,7 +141,6 @@ r_bt_bb_recorrect_is_dead = 0x40001d84;
 r_bt_bb_restart_hw_recorrect = 0x40001d88;
 r_ke_task_handler_pre = 0x40001da0;
 r_ke_task_handler_end = 0x40001da4;
-r_ke_task_handler_get_overwrite = 0x40001da8;
 r_lld_scan_frm_skip_isr_eco = 0x40001db0;
 r_lld_ext_scan_dynamic_pti_reset = 0x40001db4;
 r_llc_rem_phy_upd_proc_continue_eco = 0x40001db8;
@@ -177,6 +175,7 @@ r_btdm_task_recycle = 0x40000c1c;
 r_hci_register_vendor_desc_tab = 0x40000d9c;
 r_ke_task_schedule = 0x40000e80;
 r_llc_hci_command_handler = 0x40000ef0;
+r_llc_loc_ch_map_proc_continue = 0x40000f5c;
 r_llc_loc_con_upd_proc_continue = 0x40000f60;
 r_llc_loc_phy_upd_proc_continue = 0x40000f78;
 r_llc_rem_con_upd_proc_continue = 0x40000fb4;
@@ -215,6 +214,8 @@ r_lld_scan_start_eco = 0x40001d24;
 r_lld_scan_try_sched_eco = 0x40001dac;
 r_lld_scan_start_hook = 0x40001c74;
 r_lld_init_start_hook = 0x40001cb8;
+r_lld_scan_evt_start_cbk_eco = 0x40001d20;
+r_ke_task_handler_get_overwrite = 0x40001da8;
 */
 
 

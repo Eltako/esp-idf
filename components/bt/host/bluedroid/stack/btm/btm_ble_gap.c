@@ -388,6 +388,12 @@ void BTM_BleUpdateAdvFilterPolicy(tBTM_BLE_AFP adv_policy)
                              &p_cb->adv_addr_type);
         }
 
+        uint8_t null_addr[BD_ADDR_LEN] = {0};
+        if ((p_cb->evt_type == 0x01 || p_cb->evt_type == 0x04) && memcmp(p_addr_ptr, null_addr, BD_ADDR_LEN) == 0) {
+            /* directed advertising */
+            return;
+        }
+
         btsnd_hcic_ble_write_adv_params ((UINT16)(p_cb->adv_interval_min ? p_cb->adv_interval_min :
                                          BTM_BLE_GAP_ADV_SLOW_INT),
                                          (UINT16)(p_cb->adv_interval_max ? p_cb->adv_interval_max :
@@ -2095,7 +2101,7 @@ BOOLEAN BTM_BleGetCurrentAddress(BD_ADDR addr, uint8_t *addr_type)
 ** Returns          pointer of ADV data
 **
 *******************************************************************************/
-UINT8 *BTM_CheckAdvData( UINT8 *p_adv, UINT8 type, UINT8 *p_length)
+UINT8 *BTM_CheckAdvData( UINT8 *p_adv, UINT16 adv_data_len, UINT8 type, UINT8 *p_length)
 {
     UINT8 *p = p_adv;
     UINT8 length;
@@ -2104,7 +2110,7 @@ UINT8 *BTM_CheckAdvData( UINT8 *p_adv, UINT8 type, UINT8 *p_length)
 
     STREAM_TO_UINT8(length, p);
 
-    while ( length && (p - p_adv < BTM_BLE_CACHE_ADV_DATA_MAX)) {
+    while ( length && (p - p_adv < adv_data_len)) {
         STREAM_TO_UINT8(adv_type, p);
 
         if ( adv_type == type ) {
@@ -2117,7 +2123,7 @@ UINT8 *BTM_CheckAdvData( UINT8 *p_adv, UINT8 type, UINT8 *p_length)
 
         /* Break loop if advertising data is in an incorrect format,
            as it may lead to memory overflow */
-        if (p >= p_adv + BTM_BLE_CACHE_ADV_DATA_MAX) {
+        if (p >= p_adv + adv_data_len) {
             break;
         }
 
@@ -3170,7 +3176,7 @@ UINT8 btm_ble_is_discoverable(BD_ADDR bda, UINT8 evt_type, UINT8 *p)
     }
 
     if (p_le_inq_cb->adv_len != 0) {
-        if ((p_flag = BTM_CheckAdvData(p_le_inq_cb->adv_data_cache,
+        if ((p_flag = BTM_CheckAdvData(p_le_inq_cb->adv_data_cache, p_le_inq_cb->adv_len,
                                        BTM_BLE_AD_TYPE_FLAG, &data_len)) != NULL) {
             flag = * p_flag;
 
@@ -3386,7 +3392,7 @@ BOOLEAN btm_ble_update_inq_result(BD_ADDR bda, tINQ_DB_ENT *p_i, UINT8 addr_type
     p_i->inq_count = p_inq->inq_counter;   /* Mark entry for current inquiry */
 
     if (p_le_inq_cb->adv_len != 0) {
-        if ((p_flag = BTM_CheckAdvData(p_le_inq_cb->adv_data_cache, BTM_BLE_AD_TYPE_FLAG, &len)) != NULL) {
+        if ((p_flag = BTM_CheckAdvData(p_le_inq_cb->adv_data_cache, p_le_inq_cb->adv_len, BTM_BLE_AD_TYPE_FLAG, &len)) != NULL) {
             p_cur->flag = * p_flag;
         }
     }
@@ -3396,11 +3402,11 @@ BOOLEAN btm_ble_update_inq_result(BD_ADDR bda, tINQ_DB_ENT *p_i, UINT8 addr_type
          * then try to convert the appearance value to a class of device value Bluedroid can use.
          * Otherwise fall back to trying to infer if it is a HID device based on the service class.
          */
-        p_uuid16 = BTM_CheckAdvData(p_le_inq_cb->adv_data_cache, BTM_BLE_AD_TYPE_APPEARANCE, &len);
+        p_uuid16 = BTM_CheckAdvData(p_le_inq_cb->adv_data_cache, p_le_inq_cb->adv_len, BTM_BLE_AD_TYPE_APPEARANCE, &len);
         if (p_uuid16 && len == 2) {
             btm_ble_appearance_to_cod((UINT16)p_uuid16[0] | (p_uuid16[1] << 8), p_cur->dev_class);
         } else {
-            if ((p_uuid16 = BTM_CheckAdvData(p_le_inq_cb->adv_data_cache,
+            if ((p_uuid16 = BTM_CheckAdvData(p_le_inq_cb->adv_data_cache, p_le_inq_cb->adv_len,
                                              BTM_BLE_AD_TYPE_16SRV_CMPL, &len)) != NULL) {
                 UINT8 i;
                 for (i = 0; i + 2 <= len; i = i + 2) {
@@ -3487,10 +3493,10 @@ void btm_send_sel_conn_callback(BD_ADDR remote_bda, UINT8 evt_type, UINT8 *p_dat
 
     /* get the device name if exist in ADV data */
     if (data_len != 0) {
-        p_dev_name = BTM_CheckAdvData(p_data, BTM_BLE_AD_TYPE_NAME_CMPL, &len);
+        p_dev_name = BTM_CheckAdvData(p_data, data_len, BTM_BLE_AD_TYPE_NAME_CMPL, &len);
 
         if (p_dev_name == NULL) {
-            p_dev_name = BTM_CheckAdvData(p_data, BTM_BLE_AD_TYPE_NAME_SHORT, &len);
+            p_dev_name = BTM_CheckAdvData(p_data, data_len, BTM_BLE_AD_TYPE_NAME_SHORT, &len);
         }
 
         if (p_dev_name) {
@@ -4003,6 +4009,9 @@ static void btm_ble_stop_discover(void)
         if(btsnd_hcic_ble_set_scan_enable (BTM_BLE_SCAN_DISABLE, BTM_BLE_DUPLICATE_ENABLE)) {
             osi_sem_take(&scan_enable_sem, OSI_SEM_MAX_TIMEOUT);
         }
+        /* reset status */
+        btm_ble_clear_topology_mask(BTM_BLE_STATE_ACTIVE_SCAN_BIT);
+        btm_ble_clear_topology_mask(BTM_BLE_STATE_PASSIVE_SCAN_BIT);
     }
 
     if (p_scan_cb) {

@@ -33,7 +33,6 @@ api-guides/deep-sleep-stub.rst
 api-guides/blufi.rst
 api-guides/lwip.rst
 api-guides/coexist.rst
-api-guides/flash_psram_config.rst
 api-guides/usb-serial-jtag-console.rst
 api-guides/wifi.rst
 api-guides/usb-otg-console.rst
@@ -87,6 +86,7 @@ api-reference/peripherals/usb_host/usb_host_notes_arch.rst
 api-reference/peripherals/usb_host/usb_host_notes_index.rst
 api-reference/peripherals/usb_host/usb_host_notes_dwc_otg.rst
 api-reference/peripherals/usb_host/usb_host_notes_design.rst
+api-reference/peripherals/usb_host/usb_host_notes_usbh.rst
 api-reference/peripherals/hmac.rst
 api-reference/peripherals/usb_device.rst
 api-reference/peripherals/sdspi_host.rst

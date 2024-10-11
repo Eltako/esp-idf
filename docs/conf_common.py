@@ -16,21 +16,24 @@ from esp_docs.conf_docs import *  # noqa: F403,F401
 if os.environ.get('IDF_PATH') is None:
     raise RuntimeError('IDF_PATH should be set, run export.sh before building docs')
 
-BT_DOCS = ['api-guides/bluetooth.rst',
-           'api-reference/bluetooth/bt_le.rst',
-           'api-reference/bluetooth/esp_bt_defs.rst',
+BT_DOCS = ['api-reference/bluetooth/esp_bt_defs.rst',
            'api-reference/bluetooth/esp_bt_device.rst',
            'api-reference/bluetooth/esp_bt_main.rst',
            'api-reference/bluetooth/bt_common.rst',
            'api-reference/bluetooth/controller_vhci.rst',
-           'api-reference/bluetooth/esp_gap_ble.rst',
-           'api-reference/bluetooth/esp_gatt_defs.rst',
-           'api-reference/bluetooth/esp_gatts.rst',
-           'api-reference/bluetooth/esp_gattc.rst',
-           'api-reference/bluetooth/index.rst',
-           'api-reference/bluetooth/nimble/index.rst']
+           'api-reference/bluetooth/index.rst']
 
-BLE_DOCS = ['migration-guides/release-5.x/5.0/bluetooth-low-energy.rst']
+BLE_DOCS = ['api-guides/ble/index.rst',
+            'api-guides/ble/overview.rst',
+            'api-guides/ble/ble-feature-support-status.rst',
+            'api-guides/ble/host-feature-support-status.rst',
+            'api-reference/bluetooth/bt_le.rst',
+            'api-reference/bluetooth/esp_gap_ble.rst',
+            'api-reference/bluetooth/esp_gatt_defs.rst',
+            'api-reference/bluetooth/esp_gatts.rst',
+            'api-reference/bluetooth/esp_gattc.rst',
+            'api-reference/bluetooth/nimble/index.rst',
+            'migration-guides/release-5.x/5.0/bluetooth-low-energy.rst']
 
 BLE_MESH_DOCS = ['api-guides/esp-ble-mesh/ble-mesh-index.rst',
                  'api-guides/esp-ble-mesh/ble-mesh-feature-list.rst',
@@ -39,7 +42,9 @@ BLE_MESH_DOCS = ['api-guides/esp-ble-mesh/ble-mesh-index.rst',
                  'api-guides/esp-ble-mesh/ble-mesh-faq.rst',
                  'api-reference/bluetooth/esp-ble-mesh.rst']
 
-CLASSIC_BT_DOCS = ['api-reference/bluetooth/classic_bt.rst',
+CLASSIC_BT_DOCS = ['api-guides/classic-bt/index.rst',
+                   'api-guides/classic-bt/overview.rst',
+                   'api-reference/bluetooth/classic_bt.rst',
                    'api-reference/bluetooth/esp_a2dp.rst',
                    'api-reference/bluetooth/esp_avrc.rst',
                    'api-reference/bluetooth/esp_hidd.rst',
@@ -53,7 +58,7 @@ CLASSIC_BT_DOCS = ['api-reference/bluetooth/classic_bt.rst',
                    'api-reference/bluetooth/esp_gap_bt.rst',
                    'migration-guides/release-5.x/5.0/bluetooth-classic.rst']
 
-BLUFI_DOCS = ['api-guides/blufi.rst',
+BLUFI_DOCS = ['api-guides/ble/blufi.rst',
               'api-reference/bluetooth/esp_blufi.rst']
 
 WIFI_DOCS = ['api-guides/wifi.rst',
@@ -108,8 +113,6 @@ LDO_DOCS = ['api-reference/peripherals/ldo_regulator.rst']
 
 TEMP_SENSOR_DOCS = ['api-reference/peripherals/temp_sensor.rst']
 
-TOUCH_SENSOR_DOCS = ['api-reference/peripherals/touch_pad.rst']
-
 SPIRAM_DOCS = ['api-guides/external-ram.rst']
 
 USB_DOCS = ['api-reference/peripherals/usb_device.rst',
@@ -117,7 +120,10 @@ USB_DOCS = ['api-reference/peripherals/usb_device.rst',
             'api-reference/peripherals/usb_host/usb_host_notes_arch.rst',
             'api-reference/peripherals/usb_host/usb_host_notes_design.rst',
             'api-reference/peripherals/usb_host/usb_host_notes_dwc_otg.rst',
-            'api-reference/peripherals/usb_host/usb_host_notes_index.rst']
+            'api-reference/peripherals/usb_host/usb_host_notes_index.rst',
+            'api-reference/peripherals/usb_host/usb_host_notes_usbh.rst',
+            'api-reference/peripherals/usb_host/usb_host_notes_enum.rst',
+            'api-reference/peripherals/usb_host/usb_host_notes_ext_hub.rst']
 
 I80_LCD_DOCS = ['api-reference/peripherals/lcd/i80_lcd.rst']
 RGB_LCD_DOCS = ['api-reference/peripherals/lcd/rgb_lcd.rst']
@@ -163,7 +169,7 @@ I2S_DOCS = ['api-reference/peripherals/i2s.rst']
 
 ISP_DOCS = ['api-reference/peripherals/isp.rst']
 
-RTC_MEM_DOCS = ['api-guides/deep-sleep-stub.rst']
+DSLP_STUB_DOCS = ['api-guides/deep-sleep-stub.rst']
 
 ADC_DOCS = ['api-reference/peripherals/adc_oneshot.rst',
             'api-reference/peripherals/adc_calibration.rst']
@@ -185,6 +191,7 @@ ESP32_DOCS = ['api-reference/system/himem.rst',
               'security/secure-boot-v1.rst',
               'api-reference/peripherals/dac.rst',
               'api-reference/peripherals/sd_pullup_requirements.rst',
+              'api-reference/peripherals/touch_pad.rst',
               'hw-reference/esp32/**',
               'api-guides/RF_calibration.rst',
               'api-guides/phy.rst'] + FTDI_JTAG_DOCS + QEMU_DOCS
@@ -194,6 +201,7 @@ ESP32S2_DOCS = ['hw-reference/esp32s2/**',
                 'api-reference/peripherals/ds.rst',
                 'api-reference/peripherals/temp_sensor.rst',
                 'api-reference/system/async_memcpy.rst',
+                'api-reference/peripherals/touch_pad.rst',
                 'api-reference/peripherals/touch_element.rst',
                 'api-guides/RF_calibration.rst',
                 'api-guides/phy.rst'] + FTDI_JTAG_DOCS + USB_OTG_DFU_DOCS + USB_OTG_CONSOLE_DOCS
@@ -201,6 +209,7 @@ ESP32S2_DOCS = ['hw-reference/esp32s2/**',
 ESP32S3_DOCS = ['hw-reference/esp32s3/**',
                 'api-reference/system/ipc.rst',
                 'api-guides/flash_psram_config.rst',
+                'api-reference/peripherals/touch_pad.rst',
                 'api-reference/peripherals/sd_pullup_requirements.rst',
                 'api-guides/RF_calibration.rst',
                 'api-guides/phy.rst'] + USB_OTG_DFU_DOCS + USB_OTG_CONSOLE_DOCS
@@ -223,6 +232,7 @@ ESP32H2_DOCS = ['api-guides/RF_calibration.rst',
                 'api-guides/phy.rst']
 
 ESP32P4_DOCS = ['api-reference/system/ipc.rst',
+                'api-reference/peripherals/cap_touch_sens.rst',
                 'api-reference/peripherals/sd_pullup_requirements.rst']
 
 # format: {tag needed to include: documents to included}, tags are parsed from sdkconfig and peripheral_caps.h headers
@@ -253,7 +263,6 @@ conditional_include_dict = {'SOC_BT_SUPPORTED':BT_DOCS,
                             'SOC_RMT_SUPPORTED':RMT_DOCS,
                             'SOC_DAC_SUPPORTED':DAC_DOCS,
                             'SOC_ETM_SUPPORTED':ETM_DOCS,
-                            'SOC_TOUCH_SENSOR_SUPPORTED':TOUCH_SENSOR_DOCS,
                             'SOC_ULP_FSM_SUPPORTED':ULP_FSM_DOCS,
                             'SOC_RISCV_COPROC_SUPPORTED':RISCV_COPROC_DOCS,
                             'SOC_LP_CORE_SUPPORTED':LP_CORE_DOCS,
@@ -269,7 +278,7 @@ conditional_include_dict = {'SOC_BT_SUPPORTED':BT_DOCS,
                             'SOC_GPSPI_SUPPORTED':SPI_DOCS,
                             'SOC_I2S_SUPPORTED':I2S_DOCS,
                             'SOC_ISP_SUPPORTED':ISP_DOCS,
-                            'SOC_RTC_MEM_SUPPORTED': RTC_MEM_DOCS,
+                            'ESP_ROM_SUPPORT_DEEP_SLEEP_WAKEUP_STUB': DSLP_STUB_DOCS,
                             'SOC_ADC_SUPPORTED':ADC_DOCS,
                             'SOC_ADC_DMA_SUPPORTED':ADC_DMA_DOCS,
                             'SOC_ANA_CMPR_SUPPORTED': ANA_CMPR_DOCS,

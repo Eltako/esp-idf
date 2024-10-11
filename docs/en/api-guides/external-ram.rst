@@ -26,7 +26,7 @@ Hardware
 
     .. only:: esp32 or esp32s2 or esp32s3
 
-        Some PSRAM chips are 1.8 V devices and some are 3.3 V. The working voltage of the PSRAM chip must match the working voltage of the flash component. Consult the datasheet for your PSRAM chip and {IDF_TARGET_NAME} device to find out the working voltages. For a 1.8 V PSRAM chip, make sure to either set the MTDI pin to a high signal level on bootup, or program {IDF_TARGET_NAME} eFuses to always use the VDD_SIO level of 1.8 V. Not doing this can damage the PSRAM and/or flash chip.
+        Some PSRAM chips are 1.8 V devices and some are 3.3 V. The working voltage of the PSRAM chip must match the working voltage of the flash component. Consult the datasheet for your PSRAM chip and {IDF_TARGET_NAME} device to find out the working voltages. For a 1.8 V PSRAM chip, make sure to either set the MTDI pin to a high signal level on boot-up, or program {IDF_TARGET_NAME} eFuses to always use the VDD_SIO level of 1.8 V. Not doing this can damage the PSRAM and/or flash chip.
 
     .. only:: esp32p4
 
@@ -54,9 +54,8 @@ ESP-IDF fully supports the use of external RAM in applications. Once the externa
     * :ref:`external_ram_config_capability_allocator`
     * :ref:`external_ram_config_malloc` (default)
     * :ref:`external_ram_config_bss`
-    :esp32: * :ref:`external_ram_config_noinit`
-    :SOC_SPIRAM_XIP_SUPPORTED: * :ref:`external_ram_config_instructions`
-    :SOC_SPIRAM_XIP_SUPPORTED: * :ref:`external_ram_config_rodata`
+    * :ref:`external_ram_config_noinit`
+    :SOC_SPIRAM_XIP_SUPPORTED: * :ref:`external_ram_config_xip`
 
 .. _external_ram_config_memory_map:
 
@@ -124,22 +123,18 @@ This option reduces the internal static memory used by the BSS segment.
 
 Remaining external RAM can also be added to the capability heap allocator using the method shown above.
 
-.. only:: esp32
+.. _external_ram_config_noinit:
 
-    .. _external_ram_config_noinit:
+Allow .noinit Segment to Be Placed in External Memory
+--------------------------------------------------------------
 
-    Allow .noinit Segment to Be Placed in External Memory
-    --------------------------------------------------------------
+Enable this option by checking :ref:`CONFIG_SPIRAM_ALLOW_NOINIT_SEG_EXTERNAL_MEMORY`. If enabled, the region of the data virtual address space where the PSRAM is mapped to will be used to store non-initialized data. The values placed in this segment will not be initialized or modified even during startup or restart.
 
-    Enable this option by checking :ref:`CONFIG_SPIRAM_ALLOW_NOINIT_SEG_EXTERNAL_MEMORY`. If enabled, the region of the data virtual address space where the PSRAM is mapped to will be used to store non-initialized data. The values placed in this segment will not be initialized or modified even during startup or restart.
-
-    By applying the macro ``EXT_RAM_NOINIT_ATTR``, data could be moved from the internal NOINIT segment to external RAM. Remaining external RAM can still be added to the capability heap allocator using the method shown above, :ref:`external_ram_config_capability_allocator`.
+By applying the macro ``EXT_RAM_NOINIT_ATTR``, data could be moved from the internal NOINIT segment to external RAM. Remaining external RAM can still be added to the capability heap allocator using the method shown above, :ref:`external_ram_config_capability_allocator`.
 
 .. only:: SOC_SPIRAM_XIP_SUPPORTED
 
     .. only:: esp32s2 or esp32s3
-
-        .. _external_ram_config_instructions:
 
         Move Instructions in Flash to PSRAM
         -----------------------------------
@@ -152,8 +147,6 @@ Remaining external RAM can also be added to the capability heap allocator using 
 
         - The corresponding virtual memory range of those instructions will also be re-mapped to PSRAM.
 
-        .. _external_ram_config_rodata:
-
         Move Read-Only Data in Flash to PSRAM
         ---------------------------------------
 
@@ -165,6 +158,7 @@ Remaining external RAM can also be added to the capability heap allocator using 
 
         - The corresponding virtual memory range of those rodata will also be re-mapped to PSRAM.
 
+        .. _external_ram_config_xip:
 
         Execute In Place (XiP) from PSRAM
         ------------------------------------
@@ -179,13 +173,14 @@ Remaining external RAM can also be added to the capability heap allocator using 
 
     .. only:: esp32p4
 
+        .. _external_ram_config_xip:
+
         Execute In Place (XiP) from PSRAM
         ------------------------------------
 
-        The :ref:`CONFIG_SPIRAM_XIP_FROM_PSRAM` option enables the executable in place (XiP) from PSRAM feature. With this option sections that are normally placed in flash ,``.text`` (for instructions) and ``.rodata`` (for read only data), will be loaded in PSRAM.
+        The :ref:`CONFIG_SPIRAM_XIP_FROM_PSRAM` option enables the executable in place (XiP) from PSRAM feature. With this option sections that are normally placed in flash, ``.text`` (for instructions) and ``.rodata`` (for read only data), will be loaded in PSRAM.
 
-        With this option enabled, the cache will not be disabled during an SPI1 flash operation, so code that requires executing during an SPI1 Flash operation does not have to be placed in internal RAM. Because P4 Flash and PSRAM are using two separate SPI buses, moving Flash content to PSRAM will actually increase the load of the PSRAM MSPI bus, so the access speed is relatively slower. The exact impact on performance will be very dependent on your apps usage of PSRAM, and we suggest doing performance profiling to determine if enabling this option will significantly impact your app's performance.
-
+        With this option enabled, the cache will not be disabled during an SPI1 flash operation, so code that requires executing during an SPI1 flash operation does not have to be placed in internal RAM. Because P4 flash and PSRAM are using two separate SPI buses, moving flash content to PSRAM will actually increase the load of the PSRAM MSPI bus, so the exact impact on performance will be dependent on your app usage of PSRAM. For example, as the PSRAM bus speed could be much faster than flash bus speed, if the instructions and data that are used to be in flash are not accessed very frequently, you might get better performance with this option enabled. We suggest doing performance profiling to determine if enabling this option.
 
 Restrictions
 ============

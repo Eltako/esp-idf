@@ -1590,6 +1590,7 @@ typedef struct {
 #if (SDP_INCLUDED == TRUE)
     tSDP_DISCOVERY_DB     *p_di_db;     /* pointer to the DI discovery database */
 #endif  ///SDP_INCLUDED == TRUE
+    BOOLEAN             uuid_added;
     UINT8               di_num;         /* total local DI record number */
     UINT32              di_handle[BTA_DI_NUM_MAX];  /* local DI record handle, the first one is primary record */
 } tBTA_DM_DI_CB;
@@ -1797,6 +1798,9 @@ extern void bta_dm_ble_set_scan_rsp_raw (tBTA_DM_MSG *p_data);
 extern void bta_dm_ble_broadcast (tBTA_DM_MSG *p_data);
 extern void bta_dm_ble_set_data_length(tBTA_DM_MSG *p_data);
 extern void bta_dm_ble_update_duplicate_exceptional_list(tBTA_DM_MSG *p_data);
+#if SMP_INCLUDED == TRUE
+extern void bta_dm_co_security_param_init(void);
+#endif
 #if BLE_ANDROID_CONTROLLER_SCAN_FILTER == TRUE
 extern void bta_dm_cfg_filter_cond (tBTA_DM_MSG *p_data);
 extern void bta_dm_scan_filter_param_setup (tBTA_DM_MSG *p_data);

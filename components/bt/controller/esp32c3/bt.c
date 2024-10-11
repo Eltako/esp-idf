@@ -115,8 +115,11 @@ do{\
 } while(0)
 
 #define OSI_FUNCS_TIME_BLOCKING  0xffffffff
-#define OSI_VERSION              0x00010008
+#define OSI_VERSION              0x00010009
 #define OSI_MAGIC_VALUE          0xFADEBEAD
+
+#define BLE_PWR_HDL_INVL 0xFFFF
+#define BLE_CONTROLLER_MALLOC_CAPS        (MALLOC_CAP_INTERNAL|MALLOC_CAP_DMA)
 
 /* Types definition
  ************************************************************************
@@ -142,15 +145,24 @@ typedef struct {
 
 typedef void (* osi_intr_handler)(void);
 
+typedef struct {
+    int source;               /*!< ISR source */
+    int flags;                /*!< ISR alloc flag */
+    void (*fn)(void *);       /*!< ISR function */
+    void *arg;                /*!< ISR function args*/
+    intr_handle_t *handle;    /*!< ISR handle */
+    esp_err_t ret;
+} btdm_isr_alloc_t;
+
 /* OSI function */
 struct osi_funcs_t {
     uint32_t _magic;
     uint32_t _version;
-    void (*_interrupt_set)(int cpu_no, int intr_source, int interrupt_no, int interrpt_prio);
-    void (*_interrupt_clear)(int interrupt_source, int interrupt_no);
-    void (*_interrupt_handler_set)(int interrupt_no, intr_handler_t fn, void *arg);
-    void (*_interrupt_disable)(void);
-    void (*_interrupt_restore)(void);
+    int (* _interrupt_alloc)(int cpu_id, int source, intr_handler_t handler, void *arg, void **ret_handle);
+    int (* _interrupt_free)(void *handle);
+    void (*_interrupt_handler_set_rsv)(int interrupt_no, intr_handler_t fn, void *arg);
+    void (*_global_intr_disable)(void);
+    void (*_global_intr_restore)(void);
     void (*_task_yield)(void);
     void (*_task_yield_from_isr)(void);
     void *(*_semphr_create)(uint32_t max, uint32_t init);
@@ -195,8 +207,8 @@ struct osi_funcs_t {
     uint32_t (* _coex_schm_interval_get)(void);
     uint8_t (* _coex_schm_curr_period_get)(void);
     void *(* _coex_schm_curr_phase_get)(void);
-    void (* _interrupt_on)(int intr_num);
-    void (* _interrupt_off)(int intr_num);
+    int (* _interrupt_enable)(void *handle);
+    int (* _interrupt_disable)(void *handle);
     void (* _esp_hw_power_down)(void);
     void (* _esp_hw_power_up)(void);
     void (* _ets_backup_dma_copy)(uint32_t reg, uint32_t mem_addr, uint32_t num, bool to_rem);
@@ -245,8 +257,8 @@ extern bool API_vhci_host_check_send_available(void);
 extern void API_vhci_host_send_packet(uint8_t *data, uint16_t len);
 extern int API_vhci_host_register_callback(const vhci_host_callback_t *callback);
 /* TX power */
-extern int ble_txpwr_set(int power_type, int power_level);
-extern int ble_txpwr_get(int power_type);
+extern int ble_txpwr_set(int power_type, uint16_t handle, int power_level);
+extern int ble_txpwr_get(int power_type, uint16_t handle);
 
 extern uint16_t l2c_ble_link_get_tx_buf_num(void);
 extern void coex_pti_v2(void);
@@ -277,11 +289,10 @@ extern uint32_t _bt_controller_data_end;
 /* Local Function Declare
  *********************************************************************
  */
-static void interrupt_set_wrapper(int cpu_no, int intr_source, int intr_num, int intr_prio);
-static void interrupt_clear_wrapper(int intr_source, int intr_num);
-static void interrupt_handler_set_wrapper(int n, intr_handler_t fn, void *arg);
-static void interrupt_disable(void);
-static void interrupt_restore(void);
+static int interrupt_alloc_wrapper(int cpu_id, int source, intr_handler_t handler, void *arg, void **ret_handle);
+static int interrupt_free_wrapper(void *handle);
+static void global_interrupt_disable(void);
+static void global_interrupt_restore(void);
 static void task_yield_from_isr(void);
 static void *semphr_create_wrapper(uint32_t max, uint32_t init);
 static void semphr_delete_wrapper(void *semphr);
@@ -319,8 +330,8 @@ static void coex_schm_status_bit_clear_wrapper(uint32_t type, uint32_t status);
 static uint32_t coex_schm_interval_get_wrapper(void);
 static uint8_t coex_schm_curr_period_get_wrapper(void);
 static void * coex_schm_curr_phase_get_wrapper(void);
-static void interrupt_on_wrapper(int intr_num);
-static void interrupt_off_wrapper(int intr_num);
+static int interrupt_enable_wrapper(void *handle);
+static int interrupt_disable_wrapper(void *handle);
 static void btdm_hw_mac_power_up_wrapper(void);
 static void btdm_hw_mac_power_down_wrapper(void);
 static void btdm_backup_dma_copy_wrapper(uint32_t reg, uint32_t mem_addr, uint32_t num,  bool to_mem);
@@ -341,11 +352,11 @@ static void bt_controller_deinit_internal(void);
 static const struct osi_funcs_t osi_funcs_ro = {
     ._magic = OSI_MAGIC_VALUE,
     ._version = OSI_VERSION,
-    ._interrupt_set = interrupt_set_wrapper,
-    ._interrupt_clear = interrupt_clear_wrapper,
-    ._interrupt_handler_set = interrupt_handler_set_wrapper,
-    ._interrupt_disable = interrupt_disable,
-    ._interrupt_restore = interrupt_restore,
+    ._interrupt_alloc = interrupt_alloc_wrapper,
+    ._interrupt_free = interrupt_free_wrapper,
+    ._interrupt_handler_set_rsv = NULL,
+    ._global_intr_disable = global_interrupt_disable,
+    ._global_intr_restore = global_interrupt_restore,
     ._task_yield = vPortYield,
     ._task_yield_from_isr = task_yield_from_isr,
     ._semphr_create = semphr_create_wrapper,
@@ -390,8 +401,8 @@ static const struct osi_funcs_t osi_funcs_ro = {
     ._coex_schm_interval_get = coex_schm_interval_get_wrapper,
     ._coex_schm_curr_period_get = coex_schm_curr_period_get_wrapper,
     ._coex_schm_curr_phase_get = coex_schm_curr_phase_get_wrapper,
-    ._interrupt_on = interrupt_on_wrapper,
-    ._interrupt_off = interrupt_off_wrapper,
+    ._interrupt_enable = interrupt_enable_wrapper,
+    ._interrupt_disable = interrupt_disable_wrapper,
     ._esp_hw_power_down = btdm_hw_mac_power_down_wrapper,
     ._esp_hw_power_up = btdm_hw_mac_power_up_wrapper,
     ._ets_backup_dma_copy = btdm_backup_dma_copy_wrapper,
@@ -478,35 +489,44 @@ static inline void esp_bt_power_domain_off(void)
     esp_wifi_bt_power_domain_off();
 }
 
-static void interrupt_set_wrapper(int cpu_no, int intr_source, int intr_num, int intr_prio)
+static void btdm_intr_alloc(void *arg)
 {
-    esp_rom_route_intr_matrix(cpu_no, intr_source, intr_num);
-#if __riscv
-    esprv_int_set_priority(intr_num, intr_prio);
-    esprv_int_set_type(intr_num, 0);
+    btdm_isr_alloc_t *p = arg;
+    p->ret = esp_intr_alloc(p->source, p->flags, p->fn, p->arg, p->handle);
+}
+
+static int interrupt_alloc_wrapper(int cpu_id, int source, intr_handler_t handler, void *arg, void **ret_handle)
+{
+    btdm_isr_alloc_t p;
+    p.source = source;
+    p.flags = ESP_INTR_FLAG_LEVEL3 | ESP_INTR_FLAG_IRAM;
+    p.fn = handler;
+    p.arg = arg;
+    p.handle = (intr_handle_t *)ret_handle;
+#if CONFIG_FREERTOS_UNICORE
+    btdm_intr_alloc(&p);
+#else
+    esp_ipc_call_blocking(cpu_id, btdm_intr_alloc, &p);
 #endif
+    return p.ret;
 }
 
-static void interrupt_clear_wrapper(int intr_source, int intr_num)
+static int interrupt_free_wrapper(void *handle)
 {
+    return esp_intr_free((intr_handle_t)handle);
 }
 
-static void interrupt_handler_set_wrapper(int n, intr_handler_t fn, void *arg)
+static int interrupt_enable_wrapper(void *handle)
 {
-    esp_cpu_intr_set_handler(n, fn, arg);
+    return esp_intr_enable((intr_handle_t)handle);
 }
 
-static void interrupt_on_wrapper(int intr_num)
+static int interrupt_disable_wrapper(void *handle)
 {
-    esp_cpu_intr_enable(1 << intr_num);
+    return esp_intr_disable((intr_handle_t)handle);
 }
 
-static void interrupt_off_wrapper(int intr_num)
-{
-    esp_cpu_intr_disable(1<<intr_num);
-}
-
-static void IRAM_ATTR interrupt_disable(void)
+static void IRAM_ATTR global_interrupt_disable(void)
 {
     if (xPortInIsrContext()) {
         portENTER_CRITICAL_ISR(&global_int_mux);
@@ -515,7 +535,7 @@ static void IRAM_ATTR interrupt_disable(void)
     }
 }
 
-static void IRAM_ATTR interrupt_restore(void)
+static void IRAM_ATTR global_interrupt_restore(void)
 {
     if (xPortInIsrContext()) {
         portEXIT_CRITICAL_ISR(&global_int_mux);
@@ -670,11 +690,25 @@ static bool IRAM_ATTR is_in_isr_wrapper(void)
 
 static void *malloc_internal_wrapper(size_t size)
 {
-    void *p = heap_caps_malloc(size, MALLOC_CAP_INTERNAL|MALLOC_CAP_DMA);
+    void *p = heap_caps_malloc(size, BLE_CONTROLLER_MALLOC_CAPS);
     if(p == NULL) {
         ESP_LOGE(BT_LOG_TAG, "Malloc failed");
     }
     return p;
+}
+
+void *malloc_ble_controller_mem(size_t size)
+{
+    void *p = heap_caps_malloc(size, BLE_CONTROLLER_MALLOC_CAPS);
+    if(p == NULL) {
+        ESP_LOGE(BT_LOG_TAG, "Malloc failed");
+    }
+    return p;
+}
+
+uint32_t get_ble_controller_free_heap_size(void)
+{
+    return heap_caps_get_free_size(BLE_CONTROLLER_MALLOC_CAPS);
 }
 
 static int IRAM_ATTR read_mac_wrapper(uint8_t mac[6])
@@ -1657,16 +1691,89 @@ esp_bt_controller_status_t esp_bt_controller_get_status(void)
     return btdm_controller_status;
 }
 
+static int enh_power_type_get(esp_ble_power_type_t power_type)
+{
+    switch (power_type) {
+    case ESP_BLE_PWR_TYPE_ADV:
+        return ESP_BLE_ENHANCED_PWR_TYPE_ADV;
+    case ESP_BLE_PWR_TYPE_SCAN:
+        return ESP_BLE_ENHANCED_PWR_TYPE_SCAN;
+    case ESP_BLE_PWR_TYPE_CONN_HDL0:
+    case ESP_BLE_PWR_TYPE_CONN_HDL1:
+    case ESP_BLE_PWR_TYPE_CONN_HDL2:
+    case ESP_BLE_PWR_TYPE_CONN_HDL3:
+    case ESP_BLE_PWR_TYPE_CONN_HDL4:
+    case ESP_BLE_PWR_TYPE_CONN_HDL5:
+    case ESP_BLE_PWR_TYPE_CONN_HDL6:
+    case ESP_BLE_PWR_TYPE_CONN_HDL7:
+    case ESP_BLE_PWR_TYPE_CONN_HDL8:
+        return ESP_BLE_ENHANCED_PWR_TYPE_CONN;
+    case ESP_BLE_PWR_TYPE_DEFAULT:
+        return ESP_BLE_ENHANCED_PWR_TYPE_DEFAULT;
+    default:
+        break;
+    }
+
+    return power_type;
+}
+
 /* extra functions */
 esp_err_t esp_ble_tx_power_set(esp_ble_power_type_t power_type, esp_power_level_t power_level)
 {
     esp_err_t stat = ESP_FAIL;
+    uint16_t handle = BLE_PWR_HDL_INVL;
+    int enh_pwr_type = enh_power_type_get(power_type);
+
+    if (power_type > ESP_BLE_PWR_TYPE_DEFAULT) {
+        return ESP_ERR_NOT_SUPPORTED;
+    }
+
+    if (enh_pwr_type == ESP_BLE_ENHANCED_PWR_TYPE_CONN) {
+        handle = power_type;
+    }
+
+    if (ble_txpwr_set(enh_pwr_type, handle, power_level) == 0) {
+        stat = ESP_OK;
+    }
+
+    return stat;
+}
+
+esp_power_level_t esp_ble_tx_power_get(esp_ble_power_type_t power_type)
+{
+    esp_power_level_t lvl;
+    uint16_t handle = BLE_PWR_HDL_INVL;
+    int enh_pwr_type = enh_power_type_get(power_type);
+
+    if (power_type > ESP_BLE_PWR_TYPE_DEFAULT) {
+        return ESP_PWR_LVL_INVALID;
+    }
+
+    if (enh_pwr_type == ESP_BLE_ENHANCED_PWR_TYPE_CONN) {
+        handle = power_type;
+    }
+
+    lvl = (esp_power_level_t)ble_txpwr_get(power_type, handle);
+
+    return lvl;
+}
+
+esp_err_t esp_ble_tx_power_set_enhanced(esp_ble_enhanced_power_type_t power_type, uint16_t handle,
+                                        esp_power_level_t power_level)
+{
+    esp_err_t stat = ESP_FAIL;
 
     switch (power_type) {
-    case ESP_BLE_PWR_TYPE_ADV:
-    case ESP_BLE_PWR_TYPE_SCAN:
-    case ESP_BLE_PWR_TYPE_DEFAULT:
-        if (ble_txpwr_set(power_type, power_level) == 0) {
+    case ESP_BLE_ENHANCED_PWR_TYPE_DEFAULT:
+    case ESP_BLE_ENHANCED_PWR_TYPE_SCAN:
+    case ESP_BLE_ENHANCED_PWR_TYPE_INIT:
+        if (ble_txpwr_set(power_type, BLE_PWR_HDL_INVL, power_level) == 0) {
+            stat = ESP_OK;
+        }
+        break;
+    case ESP_BLE_ENHANCED_PWR_TYPE_ADV:
+    case ESP_BLE_ENHANCED_PWR_TYPE_CONN:
+        if (ble_txpwr_set(power_type, handle, power_level) == 0) {
             stat = ESP_OK;
         }
         break;
@@ -1678,33 +1785,26 @@ esp_err_t esp_ble_tx_power_set(esp_ble_power_type_t power_type, esp_power_level_
     return stat;
 }
 
-esp_power_level_t esp_ble_tx_power_get(esp_ble_power_type_t power_type)
+esp_power_level_t esp_ble_tx_power_get_enhanced(esp_ble_enhanced_power_type_t power_type,
+                                                uint16_t handle)
 {
-    esp_power_level_t lvl;
+    int tx_level = 0;
 
     switch (power_type) {
-    case ESP_BLE_PWR_TYPE_ADV:
-    case ESP_BLE_PWR_TYPE_SCAN:
-        lvl = (esp_power_level_t)ble_txpwr_get(power_type);
+    case ESP_BLE_ENHANCED_PWR_TYPE_DEFAULT:
+    case ESP_BLE_ENHANCED_PWR_TYPE_SCAN:
+    case ESP_BLE_ENHANCED_PWR_TYPE_INIT:
+        tx_level = ble_txpwr_get(power_type, BLE_PWR_HDL_INVL);
         break;
-    case ESP_BLE_PWR_TYPE_CONN_HDL0:
-    case ESP_BLE_PWR_TYPE_CONN_HDL1:
-    case ESP_BLE_PWR_TYPE_CONN_HDL2:
-    case ESP_BLE_PWR_TYPE_CONN_HDL3:
-    case ESP_BLE_PWR_TYPE_CONN_HDL4:
-    case ESP_BLE_PWR_TYPE_CONN_HDL5:
-    case ESP_BLE_PWR_TYPE_CONN_HDL6:
-    case ESP_BLE_PWR_TYPE_CONN_HDL7:
-    case ESP_BLE_PWR_TYPE_CONN_HDL8:
-    case ESP_BLE_PWR_TYPE_DEFAULT:
-        lvl = (esp_power_level_t)ble_txpwr_get(ESP_BLE_PWR_TYPE_DEFAULT);
+    case ESP_BLE_ENHANCED_PWR_TYPE_ADV:
+    case ESP_BLE_ENHANCED_PWR_TYPE_CONN:
+        tx_level = ble_txpwr_get(power_type, handle);
         break;
     default:
-        lvl = ESP_PWR_LVL_INVALID;
-        break;
+        return ESP_PWR_LVL_INVALID;
     }
 
-    return lvl;
+    return (esp_power_level_t)tx_level;
 }
 
 esp_err_t esp_bt_sleep_enable (void)

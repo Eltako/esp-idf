@@ -75,6 +75,7 @@ static void on_ppp_status_changed(ppp_pcb *pcb, int err_code, void *ctx)
             break;
         case PPPERR_CONNECT: /* Connection lost */
             ESP_LOGI(TAG, "Connection lost");
+            esp_netif_update_default_netif(netif, ESP_NETIF_LOST_IP);
             err = esp_event_post(IP_EVENT, netif->lost_ip_event, &evt, sizeof(evt), 0);
 
             if (ESP_OK != err) {
@@ -165,7 +166,7 @@ static void on_ppp_notify_phase(ppp_pcb *pcb, u8_t phase, void *ctx)
 #endif // PPP_NOTIFY_PHASE
 
 /**
- * @brief PPP low level output callback used to transmit data using standard esp-netif interafce
+ * @brief PPP low level output callback used to transmit data using standard esp-netif interface
  *
  * @param pcb PPP control block
  * @param data Buffer to write to serial port
@@ -262,6 +263,10 @@ esp_err_t esp_netif_start_ppp(esp_netif_t *esp_netif)
         ppp_ctx->ppp->ipcp_wantoptions.accept_local = 1;
     }
 #endif // CONFIG_LWIP_PPP_SERVER_SUPPORT
+
+#if ESP_IPV6_AUTOCONFIG
+    ppp_ctx->ppp->netif->ip6_autoconfig_enabled = 1;
+#endif
 
     ESP_LOGD(TAG, "%s: Starting PPP connection: %p", __func__, ppp_ctx->ppp);
 #ifdef CONFIG_LWIP_PPP_SERVER_SUPPORT

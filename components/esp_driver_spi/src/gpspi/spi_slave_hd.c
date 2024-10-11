@@ -51,8 +51,8 @@ typedef struct {
     QueueHandle_t tx_ret_queue;
     QueueHandle_t rx_trans_queue;
     QueueHandle_t rx_ret_queue;
-    QueueHandle_t tx_cnting_sem;
-    QueueHandle_t rx_cnting_sem;
+    SemaphoreHandle_t tx_cnting_sem;
+    SemaphoreHandle_t rx_cnting_sem;
 
     spi_slave_hd_trans_priv_t tx_curr_trans;
     spi_slave_hd_trans_priv_t rx_curr_trans;
@@ -335,16 +335,14 @@ static IRAM_ATTR void spi_slave_hd_intr_segment(void *arg)
     awoken |= intr_check_clear_callback(host, SPI_EV_CMD9,   callback->cb_cmd9);
     awoken |= intr_check_clear_callback(host, SPI_EV_CMDA,   callback->cb_cmdA);
 
-    bool tx_done = false;
-    bool rx_done = false;
+    bool tx_done = false, rx_done = false;
+    bool tx_event = false, rx_event = false;
 
     portENTER_CRITICAL_ISR(&host->int_spinlock);
-    if (host->tx_curr_trans.trans && spi_slave_hd_hal_check_disable_event(hal, SPI_EV_SEND)) {
-        tx_done = true;
-    }
-    if (host->rx_curr_trans.trans && spi_slave_hd_hal_check_disable_event(hal, SPI_EV_RECV)) {
-        rx_done = true;
-    }
+    tx_event = spi_slave_hd_hal_check_disable_event(hal, SPI_EV_SEND);
+    rx_event = spi_slave_hd_hal_check_disable_event(hal, SPI_EV_RECV);
+    tx_done = host->tx_curr_trans.trans && tx_event;
+    rx_done = host->rx_curr_trans.trans && rx_event;
     portEXIT_CRITICAL_ISR(&host->int_spinlock);
 
     if (tx_done) {
@@ -601,6 +599,9 @@ static esp_err_t s_spi_slave_hd_setup_priv_trans(spi_host_device_t host, spi_sla
         memcpy(priv_trans->aligned_buffer, orig_trans->data, orig_trans->len);
         esp_err_t ret = esp_cache_msync((void *)priv_trans->aligned_buffer, byte_len, ESP_CACHE_MSYNC_FLAG_DIR_C2M);
         ESP_RETURN_ON_FALSE(ESP_OK == ret, ESP_ERR_INVALID_STATE, TAG, "mem sync c2m(writeback) fail");
+    } else {
+        esp_err_t ret = esp_cache_msync((void *)priv_trans->aligned_buffer, byte_len, ESP_CACHE_MSYNC_FLAG_DIR_M2C);
+        ESP_RETURN_ON_FALSE(ESP_OK == ret, ESP_ERR_INVALID_STATE, TAG, "mem sync m2c(invalid) fail");
     }
 #endif  //SOC_CACHE_INTERNAL_MEM_VIA_L1CACHE
     return ESP_OK;

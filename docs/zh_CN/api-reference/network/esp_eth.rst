@@ -116,9 +116,7 @@
 
 以太网驱动器由两部分组成：MAC 和 PHY。
 
-.. TODO remove esp32p4 (IDF-9057)
-
-.. only:: SOC_EMAC_SUPPORTED and not esp32p4
+.. only:: SOC_EMAC_SUPPORTED
 
     MAC 和 PHY 之间的通信可以通过多种方式进行，如： **MII** （媒体独立接口）、 **RMII** （简化媒体独立接口）等。
 
@@ -167,6 +165,9 @@
 
             * 强制复位 PHY 设备（对应图中的选项 **a**）。**此种方法并不适用于所有 PHY 设备** （即便处于复位状态，某些 PHY 设备仍会向 GPIO0 输出信号）。
 
+        .. warning::
+            如希望 **以太网与 Wi-Fi 一起工作**，不要选择 ESP32 作为 ``REF_CLK`` 的源，因为这会导致 ``REF_CLK`` 不稳定。可以选择禁用 Wi-Fi，或使用 PHY 或外部振荡器作为 ``REF_CLK`` 的源。
+
     .. only:: not esp32
 
         .. note::
@@ -193,7 +194,7 @@
     .. only:: not SOC_EMAC_USE_MULTI_IO_MUX
 
         .. note::
-            数据平面中使用的信号通过 IO_MUX 连接至特定的 GPIO，这些信号无法配置到其他 GPIO 上。控制平面中使用的信号可以通过矩阵路由到任何空闲的 GPIO 上。相关硬件设计示例，请参阅 :doc:`ESP32-Ethernet-Kit <../../hw-reference/esp32/get-started-ethernet-kit>`。
+            数据平面中使用的信号通过 IO_MUX 连接至特定的 GPIO，这些信号无法配置到其他 GPIO 上。控制平面中使用的信号可以通过矩阵路由到任何空闲的 GPIO 上。相关硬件设计示例，请参阅 `ESP32-Ethernet-Kit <https://docs.espressif.com/projects/esp-dev-kits/zh_CN/latest/esp32/esp32-ethernet-kit/index.html>`_。
 
     .. only:: SOC_EMAC_USE_MULTI_IO_MUX
 
